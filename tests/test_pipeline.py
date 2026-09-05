@@ -1,5 +1,7 @@
 from pathlib import Path
 
+import srt
+
 from paircue.models import MediaItem
 from paircue.services.glossary import GlossaryStore
 from paircue.services.pipeline import SubtitlePipeline
@@ -164,6 +166,26 @@ def test_pipeline_writes_complete_atomic_outputs(tmp_path: Path) -> None:
     assert (tmp_path / "Movie.zh-TW.srt").exists()
     assert (tmp_path / "Movie.mul.srt").exists()
     assert not list(tmp_path.glob(".*.tmp"))
+
+
+def test_pipeline_preserves_meaning_before_ai_and_in_bilingual_output(tmp_path: Path) -> None:
+    original = "ANA: I will (not) go. [Really.]\n♪ Stay with me ♪"
+
+    class RecordingTranslator:
+        def translate_all(
+            self, subtitles: list[srt.Subtitle], *, context: str, glossary: dict[str, str],
+        ) -> dict[int, str]:
+            assert len(subtitles) == 1
+            assert subtitles[0].content == original
+            return {0: "Synthetic translation"}
+
+    item = _media_with_source(tmp_path, "en", original)
+    source_path = tmp_path / "Lesson.en.srt"
+    source_bytes = source_path.read_bytes()
+    result = _pipeline(tmp_path, RecordingTranslator()).process(item)
+    assert result.status == "completed"
+    assert original in (tmp_path / "Lesson.mul.srt").read_text(encoding="utf-8")
+    assert source_path.read_bytes() == source_bytes
 
 
 def test_pipeline_does_not_publish_partial_translation(tmp_path: Path) -> None:

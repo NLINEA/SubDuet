@@ -204,7 +204,10 @@ def test_final_check_request_contains_only_the_documented_context(
 
     monkeypatch.setattr("paircue.services.translator.httpx.Client", FakeClient)
     provider = OpenAICompatibleProvider(
-        ProviderConfig("test", "https://example.com/v1", "private-key", "model", max_attempts=1)
+        ProviderConfig(
+            "test", "https://example.com/v1", "private-key", "model", max_attempts=1,
+            approved_origin="https://example.com",
+        )
     )
 
     result = provider.final_check(
@@ -277,7 +280,10 @@ def test_keyless_local_provider_omits_authorization_header(
 
     monkeypatch.setattr("paircue.services.translator.httpx.Client", FakeClient)
     provider = OpenAICompatibleProvider(
-        ProviderConfig("local", "http://127.0.0.1:11434/v1", "", "model", max_attempts=1)
+        ProviderConfig(
+            "local", "http://127.0.0.1:11434/v1", "", "model", max_attempts=1,
+            approved_origin="http://127.0.0.1:11434",
+        )
     )
 
     provider.translate(
@@ -296,7 +302,9 @@ def test_keyless_local_provider_omits_authorization_header(
 
 def test_only_chinese_targets_are_normalized_with_opencc() -> None:
     provider = OpenAICompatibleProvider(
-        ProviderConfig("test", "https://example.com", "key", "model")
+        ProviderConfig(
+            "test", "https://example.com", "key", "model", approved_origin="https://example.com",
+        )
     )
     response = '{"translations":[{"id":0,"text":"软件"}]}'
 

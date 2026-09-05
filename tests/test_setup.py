@@ -38,7 +38,7 @@ def test_visual_setup_is_self_contained_and_only_calls_its_local_origin() -> Non
     parser.feed(html)
 
     assert stylesheet.is_file()
-    assert parser.scripts == ["setup.js"]
+    assert parser.scripts == ["ai-connection.js", "setup.js"]
     assert parser.stylesheets == ["setup.css"]
     assert len(parser.ids) == len(set(parser.ids))
     assert "connect-src 'self'" in parser.csp

@@ -40,10 +40,6 @@ SUPPORTED_EXTENSIONS = {".srt"}
 BILINGUAL_LANGUAGE_TAG = "mul"
 MAX_SUBTITLE_BYTES = 16 * 1024 * 1024
 MAX_SUBTITLE_CUES = 100_000
-MUSIC_MARKS = re.compile(r"[♪♫♬♩]")
-BRACKETED_EFFECT = re.compile(r"\s*[\[【][^\]】]*[\]】]\s*")
-PARENTHESIZED_EFFECT = re.compile(r"\s*[（(][^）)]*[）)]\s*")
-SPEAKER_TAG = re.compile(r"^\s*[\[【][^\]】]{1,40}[\]】]\s*:?\s*")
 WHITESPACE = re.compile(r"[ \t]+")
 
 
@@ -142,14 +138,15 @@ def parse_srt(path: Path) -> list[srt.Subtitle]:
 
 
 def clean_spoken_dialogue(subtitles: list[srt.Subtitle]) -> list[srt.Subtitle]:
+    """Normalize whitespace, never guess which subtitle words are disposable.
+
+    Parentheses, speaker labels, sound descriptions and lyrics can all carry meaning.
+    Keep them available to translation and review, and leave the input cues untouched.
+    """
+
     cleaned: list[srt.Subtitle] = []
     for cue in subtitles:
-        if MUSIC_MARKS.search(cue.content):
-            continue
-        text = SPEAKER_TAG.sub("", cue.content)
-        text = BRACKETED_EFFECT.sub(" ", text)
-        text = PARENTHESIZED_EFFECT.sub(" ", text)
-        lines = [WHITESPACE.sub(" ", line).strip() for line in text.splitlines()]
+        lines = [WHITESPACE.sub(" ", line).strip() for line in cue.content.splitlines()]
         text = "\n".join(line for line in lines if line).strip()
         if not text:
             continue

@@ -50,6 +50,8 @@ def build_pipeline(settings: PairCueSettings) -> SubtitlePipeline:
         SubtitleSynchronizer(
             max_offset_seconds=settings.sync_max_offset_seconds,
             min_confidence=settings.sync_min_confidence,
+            source_language=settings.source_language,
+            audio_stream_index=settings.audio_stream_index,
         )
         if settings.sync_enabled
         else None
@@ -66,23 +68,26 @@ def build_pipeline(settings: PairCueSettings) -> SubtitlePipeline:
                 timeout_seconds=settings.translation_timeout_seconds,
                 max_attempts=settings.translation_max_attempts,
                 disable_thinking=settings.translation_disable_thinking,
+                provider=settings.translation_provider,
+                approved_origin=settings.translation_approved_origin,
             )
         )
         fallback = None
         if settings.fallback_base_url and settings.fallback_model:
             fallback_key = settings.fallback_api_key.get_secret_value()
-            if fallback_key:
-                fallback = OpenAICompatibleProvider(
-                    ProviderConfig(
-                        name="fallback",
-                        base_url=settings.fallback_base_url,
-                        api_key=fallback_key,
-                        model=settings.fallback_model,
-                        timeout_seconds=settings.translation_timeout_seconds,
-                        max_attempts=settings.translation_max_attempts,
-                        disable_thinking=settings.fallback_disable_thinking,
-                    )
+            fallback = OpenAICompatibleProvider(
+                ProviderConfig(
+                    name="fallback",
+                    base_url=settings.fallback_base_url,
+                    api_key=fallback_key,
+                    model=settings.fallback_model,
+                    timeout_seconds=settings.translation_timeout_seconds,
+                    max_attempts=settings.translation_max_attempts,
+                    disable_thinking=settings.fallback_disable_thinking,
+                    provider=settings.fallback_provider,
+                    approved_origin=settings.fallback_approved_origin,
                 )
+            )
         translator = CompleteTranslator(
             primary,
             fallback=fallback,
@@ -106,6 +111,9 @@ def build_pipeline(settings: PairCueSettings) -> SubtitlePipeline:
                 max_attempts=settings.transcription_max_attempts,
                 chunk_seconds=settings.transcription_chunk_seconds,
                 prompt=settings.transcription_prompt,
+                provider=settings.transcription_provider,
+                approved_origin=settings.transcription_approved_origin,
+                audio_stream_index=settings.audio_stream_index,
             ),
             temporary_root=settings.state_dir / "transcription",
         )

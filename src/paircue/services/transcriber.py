@@ -8,7 +8,7 @@ import shutil
 import subprocess
 import tempfile
 import time
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import timedelta
 from pathlib import Path
 from typing import Any, Protocol, cast
@@ -17,7 +17,14 @@ import httpx
 import srt
 
 from paircue import __version__
+from paircue.ai_connections import validate_ai_connection
 from paircue.services.atomic import atomic_write_bytes
+from paircue.services.audio_tracks import AudioTrackError, select_audio_stream
+from paircue.services.provider_privacy import (
+    ProviderResponseTooLargeError,
+    private_provider_diagnostics,
+    safe_provider_failure,
+)
 
 log = logging.getLogger(__name__)
 
@@ -47,12 +54,15 @@ class AudioChunk:
 @dataclass(frozen=True, slots=True)
 class TranscriptionConfig:
     base_url: str
-    api_key: str
+    api_key: str = field(repr=False)
     model: str
     timeout_seconds: float = 300
     max_attempts: int = 3
     chunk_seconds: int = 300
     prompt: str = ""
+    provider: str = "custom"
+    approved_origin: str = ""
+    audio_stream_index: int | None = None
 
 
 class OpenAICompatibleTranscriber:
@@ -70,6 +80,9 @@ class OpenAICompatibleTranscriber:
         client: httpx.Client | None = None,
     ) -> None:
         self.config = config
+        self.base_url = validate_ai_connection(
+            config.base_url, config.approved_origin, config.provider
+        )
         self.temporary_root = temporary_root
         self.temporary_root.mkdir(parents=True, exist_ok=True)
         self._owns_client = client is None
@@ -89,7 +102,7 @@ class OpenAICompatibleTranscriber:
             dir=self.temporary_root,
             prefix="paircue-transcribe-",
         ) as directory:
-            chunks = self._segment_audio(media_path, Path(directory))
+            chunks = self._segment_audio(media_path, Path(directory), language)
             cues: list[srt.Subtitle] = []
             for chunk in chunks:
                 cues.extend(self._transcribe_chunk(chunk, language))
@@ -99,10 +112,16 @@ class OpenAICompatibleTranscriber:
         atomic_write_bytes(output_path, rendered.encode("utf-8"))
         return output_path
 
-    def _segment_audio(self, media_path: Path, directory: Path) -> tuple[AudioChunk, ...]:
+    def _segment_audio(
+        self, media_path: Path, directory: Path, language: str,
+    ) -> tuple[AudioChunk, ...]:
         ffmpeg = shutil.which("ffmpeg")
         if ffmpeg is None:
             raise TranscriptionError("FFmpeg is required for subtitle generation")
+        try:
+            audio_index = select_audio_stream(media_path, language, self.config.audio_stream_index)
+        except AudioTrackError as exc:
+            raise TranscriptionError(str(exc)) from None
         pattern = directory / "chunk-%05d.flac"
         segment_list = directory / "chunks.csv"
         result = subprocess.run(  # noqa: S603 - resolved executable and fixed argument array
@@ -116,7 +135,7 @@ class OpenAICompatibleTranscriber:
                 "-i",
                 str(media_path),
                 "-map",
-                "0:a:0",
+                f"0:{audio_index}",
                 "-vn",
                 "-ac",
                 "1",
@@ -202,22 +221,24 @@ class OpenAICompatibleTranscriber:
         last_error = "transcription provider failed"
         for attempt in range(1, self.config.max_attempts + 1):
             try:
-                with chunk.path.open("rb") as audio, self.client.stream(
-                    "POST",
-                    f"{self.config.base_url}/audio/transcriptions",
-                    headers=headers,
-                    data=data,
-                    files={"file": (chunk.path.name, audio, "audio/flac")},
-                    follow_redirects=False,
-                ) as response:
+                with (
+                    private_provider_diagnostics(),
+                    chunk.path.open("rb") as audio,
+                    self.client.stream(
+                        "POST",
+                        f"{self.base_url}/audio/transcriptions",
+                        headers=headers,
+                        data=data,
+                        files={"file": (chunk.path.name, audio, "audio/flac")},
+                        follow_redirects=False,
+                    ) as response,
+                ):
                     response.raise_for_status()
                     content = bytearray()
                     for part in response.iter_bytes():
                         content.extend(part)
                         if len(content) > MAX_RESPONSE_BYTES:
-                            raise TranscriptionError(
-                                "transcription response exceeds the size limit"
-                            )
+                            raise ProviderResponseTooLargeError
                 return self._parse_segments(
                     json.loads(content),
                     chunk.offset_seconds,
@@ -228,12 +249,13 @@ class OpenAICompatibleTranscriber:
                 httpx.HTTPError,
                 TypeError,
                 ValueError,
+                OverflowError,
                 TranscriptionError,
             ) as exc:
-                last_error = f"{type(exc).__name__}: {exc}"
+                last_error = safe_provider_failure(exc)
                 if attempt < self.config.max_attempts:
                     time.sleep(min(2**attempt, 10))
-        raise TranscriptionError(last_error)
+        raise TranscriptionError(last_error) from None
 
     @staticmethod
     def _parse_segments(

@@ -7,6 +7,7 @@ import pytest
 import srt
 
 from paircue.services import media_tools
+from paircue.services.audio_tracks import AudioTrackError
 from paircue.services.media_tools import (
     EmbeddedSubtitleExtractor,
     SubtitleSynchronizer,
@@ -161,6 +162,7 @@ def test_sync_applies_only_the_confident_offset(
     monkeypatch.setattr(media_tools, "_required_binary", lambda _: "ffmpeg")
     monkeypatch.setattr(media_tools.subprocess, "run", fake_run)
     monkeypatch.setattr(synchronizer, "_audio_activity", lambda _: audio_activity)
+    monkeypatch.setattr(media_tools, "select_audio_stream", lambda *_: 3)
 
     assert synchronizer.sync(media_path, subtitle_path)
 
@@ -168,3 +170,24 @@ def test_sync_applies_only_the_confident_offset(
     assert shifted[0].start == cues[0].start + timedelta(seconds=1.5)
     assert not list(tmp_path.glob("*.paircue-sync.wav"))
     assert command[command.index("-protocol_whitelist") + 1] == "file,crypto,data"
+    assert command[command.index("-map") + 1] == "0:3"
+
+
+def test_ambiguous_audio_keeps_original_subtitle_timing(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    subtitle = tmp_path / "movie.en.srt"
+    original = "1\n00:00:01,000 --> 00:00:02,000\nUnchanged (not removed)\n\n"
+    subtitle.write_text(original, encoding="utf-8")
+
+    def ambiguous(*args: object) -> int:
+        raise AudioTrackError("ambiguous")
+
+    def no_decode(*args: object, **kwargs: object) -> None:
+        raise AssertionError("ambiguous audio must not be decoded")
+
+    monkeypatch.setattr(media_tools, "select_audio_stream", ambiguous)
+    monkeypatch.setattr(media_tools.subprocess, "run", no_decode)
+    assert not SubtitleSynchronizer().sync(tmp_path / "movie.mkv", subtitle)
+    assert subtitle.read_text(encoding="utf-8") == original
+    assert not list(tmp_path.glob("*.paircue-sync.wav"))

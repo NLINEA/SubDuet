@@ -18,6 +18,7 @@ import numpy.typing as npt
 import srt
 
 from paircue.languages import language_matches, observed_language_tag
+from paircue.services.audio_tracks import select_audio_stream
 
 log = logging.getLogger(__name__)
 
@@ -153,15 +154,22 @@ class SubtitleSynchronizer:
         min_confidence: float = 0.24,
         sample_rate: int = 8_000,
         window_ms: int = 100,
+        source_language: str = "en",
+        audio_stream_index: int | None = None,
     ) -> None:
         self.max_offset_seconds = max_offset_seconds
         self.min_confidence = min_confidence
         self.sample_rate = sample_rate
         self.window_ms = window_ms
+        self.source_language = source_language
+        self.audio_stream_index = audio_stream_index
 
     def sync(self, media_path: Path, subtitle_path: Path) -> bool:
         audio_path = self._temporary_audio(media_path)
         try:
+            audio_index = select_audio_stream(
+                media_path, self.source_language, self.audio_stream_index,
+            )
             result = subprocess.run(  # noqa: S603 - fixed executable and argv; no shell
                 [
                     _required_binary("ffmpeg"),
@@ -172,6 +180,8 @@ class SubtitleSynchronizer:
                     LOCAL_MEDIA_PROTOCOLS,
                     "-i",
                     str(media_path),
+                    "-map",
+                    f"0:{audio_index}",
                     "-vn",
                     "-ac",
                     "1",

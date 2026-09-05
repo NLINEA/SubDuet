@@ -406,6 +406,8 @@ def test_learn_command_runs_one_local_video_without_a_media_server(
             "Japanese Film",
             "--year",
             "2024",
+            "--audio-stream-index",
+            "3",
         ]
     )
 
@@ -419,6 +421,7 @@ def test_learn_command_runs_one_local_video_without_a_media_server(
     assert observed_settings[0].source_language == "ja"
     assert observed_settings[0].target_language == "en"
     assert observed_settings[0].bilingual_order == "source-first"
+    assert observed_settings[0].audio_stream_index == 3
     assert str(output) in capsys.readouterr().out
 
 
@@ -487,6 +490,8 @@ def test_doctor_requires_ffmpeg_when_transcription_is_enabled(
     monkeypatch.setenv("PAIRCUE_STATE_DIR", str(state))
     monkeypatch.setenv("PAIRCUE_TRANSCRIPTION_ENABLED", "true")
     monkeypatch.setenv("PAIRCUE_TRANSCRIPTION_API_KEY", "test-key")
+    monkeypatch.setenv("PAIRCUE_TRANSCRIPTION_BASE_URL", "https://ai.example.com/v1")
+    monkeypatch.setenv("PAIRCUE_TRANSCRIPTION_APPROVED_ORIGIN", "https://ai.example.com")
     monkeypatch.setattr(diagnostics.shutil, "which", lambda command: None)
 
     result = main(["doctor", "--json"])

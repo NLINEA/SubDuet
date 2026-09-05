@@ -24,6 +24,7 @@ def _transcriber(
     return OpenAICompatibleTranscriber(
         TranscriptionConfig(
             base_url="https://api.openai.com/v1",
+            approved_origin="https://api.openai.com",
             api_key="secret-key",
             model="whisper-1",
             max_attempts=max_attempts,
@@ -83,11 +84,13 @@ def test_audio_segmentation_rejects_non_local_ffmpeg_protocols(
 
     monkeypatch.setattr("paircue.services.transcriber.shutil.which", lambda _: "ffmpeg")
     monkeypatch.setattr("paircue.services.transcriber.subprocess.run", fake_run)
+    monkeypatch.setattr("paircue.services.transcriber.select_audio_stream", lambda *_: 3)
 
-    chunks = transcriber._segment_audio(media, output_directory)
+    chunks = transcriber._segment_audio(media, output_directory, "en")
 
     assert len(chunks) == 1
     assert command[command.index("-protocol_whitelist") + 1] == "file,crypto,data"
+    assert command[command.index("-map") + 1] == "0:3"
 
 
 def test_transcribe_combines_chunks_and_writes_only_complete_srt(
@@ -106,7 +109,8 @@ def test_transcribe_combines_chunks_and_writes_only_complete_srt(
 
     transcriber = _transcriber(tmp_path, httpx.MockTransport(handler))
 
-    def fake_segments(_: Path, directory: Path) -> tuple[AudioChunk, ...]:
+    def fake_segments(_: Path, directory: Path, language: str) -> tuple[AudioChunk, ...]:
+        assert language == "en"
         first = directory / "chunk-00000.flac"
         second = directory / "chunk-00001.flac"
         first.write_bytes(b"first")
@@ -156,7 +160,8 @@ def test_partial_transcription_never_replaces_output(
 
     transcriber = _transcriber(tmp_path, httpx.MockTransport(handler))
 
-    def fake_segments(_: Path, directory: Path) -> tuple[AudioChunk, ...]:
+    def fake_segments(_: Path, directory: Path, language: str) -> tuple[AudioChunk, ...]:
+        assert language == "en"
         first = directory / "chunk-00000.flac"
         second = directory / "chunk-00001.flac"
         first.write_bytes(b"first")

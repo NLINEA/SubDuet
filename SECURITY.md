@@ -51,6 +51,25 @@ Loopback endpoints (`localhost`, `127.0.0.0/8`, or `::1`) may use HTTP and may o
 model running on the same device. SubDuet does not implement unofficial OAuth flows or reuse a
 consumer AI-product login.
 
+Each enabled AI connection also requires an explicitly approved origin. The backend and request
+clients reject missing confirmations and host changes before connecting. Visual setup displays the
+receiving host before enabling key entry, and clears that key and approval when the provider or
+endpoint changes. Named provider presets are pinned to their official origins; custom endpoints
+still require the user's own trust decision. Approval is stored locally with the configuration,
+not a provider login or proof that a key belongs to that provider. Existing installations must
+confirm their AI destinations once after upgrading; no private configuration is migrated or deleted.
+
+AI request failures use bounded error categories and numeric HTTP status codes, not raw exceptions,
+response URLs, headers, or bodies. HTTPX/HTTPCore diagnostics are suppressed within AI request
+contexts, including debug-level output, because those diagnostics can contain provider-controlled
+data. Pipeline errors, job history, and dashboard results receive the sanitized failure message.
+Redirects are refused, never followed. This protects failure diagnostics, not arbitrary successful
+model output; do not put credentials in subtitle text, prompts, or glossaries.
+
+Audio selection uses language metadata and excludes marked commentary by default. An ambiguous
+selection stops transcription before upload. A manual stream override bypasses these selection
+checks and should only be used for a video whose tracks the user has verified.
+
 The optional AI final quality check sends only source text, the draft translation, language/style
 settings, title or episode context, and the local glossary through the same configured translation
 provider. It never sends media, audio, local paths, media-server credentials, or the provider key

@@ -69,6 +69,10 @@ def _parser() -> argparse.ArgumentParser:
     learn.add_argument("--from", dest="source_language", help="spoken/source language tag")
     learn.add_argument("--to", dest="target_language", help="learning language tag")
     learn.add_argument(
+        "--audio-stream-index", type=int,
+        help="global audio-stream index for this video when language selection is ambiguous",
+    )
+    learn.add_argument(
         "--order",
         choices=("target-first", "source-first"),
         help="which language appears on the first line",
@@ -415,6 +419,10 @@ def _learn(args: argparse.Namespace) -> int:
                 source_language=args.source_language or base_settings.source_language,
                 target_language=args.target_language or base_settings.target_language,
                 bilingual_order=args.order or base_settings.bilingual_order,
+                audio_stream_index=(
+                    args.audio_stream_index if getattr(args, "audio_stream_index", None) is not None
+                    else base_settings.audio_stream_index
+                ),
             )
             pipeline = build_pipeline(settings)
         except (OSError, ValidationError, ValueError) as exc:

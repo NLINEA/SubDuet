@@ -41,10 +41,25 @@ def test_spoken_dialogue_cleanup_keeps_alignment() -> None:
 
     cleaned = clean_spoken_dialogue(cues)
 
-    assert len(cleaned) == 1
+    assert len(cleaned) == 2
     assert cleaned[0].index == 1
-    assert cleaned[0].content == "Hello who is there?"
-    assert cleaned[0].start == timedelta(seconds=1)
+    assert cleaned[0].content == "♪ theme song ♪"
+    assert cleaned[1].content == "[NARRATOR]: Hello [door slams] who is there?"
+    assert cleaned[1].start == timedelta(seconds=1)
+
+
+@pytest.mark.parametrize("text", [
+    "The answer is (not) yes.", "答案是（不）可以。", "[不]可以。",
+    "♪ Don't leave me ♪\nWait!", "【旁白】：佢未返。", "[door slams]",
+    "(I said no.)", "No [emphasis] means no.",
+])
+def test_dialogue_cleanup_preserves_meaning_in_every_script(text: str) -> None:
+    cue = srt.Subtitle(7, timedelta(seconds=1), timedelta(seconds=2), text)
+    cleaned = clean_spoken_dialogue([cue])
+    assert cleaned[0].content == text
+    assert (cleaned[0].start, cleaned[0].end) == (cue.start, cue.end)
+    assert cue.index == 7
+    assert cue.content == text
 
 
 def test_translation_and_bilingual_require_exact_coverage() -> None:

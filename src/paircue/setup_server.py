@@ -30,6 +30,7 @@ ASSETS: dict[str, tuple[str, str]] = {
     "/favicon.svg": ("favicon.svg", "image/svg+xml"),
     "/setup.css": ("setup.css", "text/css; charset=utf-8"),
     "/setup.js": ("setup.js", "text/javascript; charset=utf-8"),
+    "/ai-connection.js": ("ai-connection.js", "text/javascript; charset=utf-8"),
 }
 
 

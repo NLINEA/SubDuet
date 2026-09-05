@@ -15,13 +15,19 @@ def test_exposed_core_requires_a_strong_token() -> None:
 
 def test_remote_translation_requires_a_key() -> None:
     with pytest.raises(ValidationError, match="TRANSLATION_API_KEY"):
-        PairCueSettings(translation_enabled=True, translation_api_key="")
+        PairCueSettings(
+            translation_enabled=True, translation_api_key="",
+            translation_base_url="https://ai.example.com/v1",
+            translation_approved_origin="https://ai.example.com", translation_model="model",
+        )
 
 
 def test_local_translation_can_run_without_a_key() -> None:
     settings = PairCueSettings(
         translation_enabled=True,
         translation_base_url="http://127.0.0.1:11434/v1",
+        translation_approved_origin="http://127.0.0.1:11434",
+        translation_model="model",
     )
 
     assert settings.translation_api_key.get_secret_value() == ""
@@ -29,11 +35,15 @@ def test_local_translation_can_run_without_a_key() -> None:
 
 def test_remote_transcription_requires_a_key_but_local_endpoint_does_not() -> None:
     with pytest.raises(ValidationError, match="TRANSCRIPTION_API_KEY"):
-        PairCueSettings(transcription_enabled=True)
+        PairCueSettings(
+            transcription_enabled=True, transcription_base_url="https://ai.example.com/v1",
+            transcription_approved_origin="https://ai.example.com",
+        )
 
     settings = PairCueSettings(
         transcription_enabled=True,
         transcription_base_url="http://localhost:9000/v1",
+        transcription_approved_origin="http://localhost:9000",
     )
 
     assert settings.transcription_model == "whisper-1"
@@ -73,10 +83,10 @@ def test_opensubtitles_credentials_require_api_key_and_complete_pair() -> None:
     assert settings.opensubtitles_username == "user"
 
 
-def test_glm_thinking_is_disabled_by_default() -> None:
+def test_vendor_specific_thinking_parameters_are_not_enabled_by_default() -> None:
     settings = PairCueSettings()
 
-    assert settings.translation_disable_thinking is True
+    assert settings.translation_disable_thinking is False
     assert settings.translation_final_check_enabled is True
     assert settings.fallback_disable_thinking is False
 

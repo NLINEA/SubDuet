@@ -14,6 +14,7 @@
       content="Create your first private bilingual subtitle with a guided SubDuet setup."
     >
     <link rel="stylesheet" href="setup.css">
+    <script src="ai-connection.js" defer></script>
     <script src="setup.js" defer></script>
   </head>
   <body>
@@ -356,7 +357,7 @@
                   <div>
                     <span class="flow-index">B</span>
                     <h3>Translate the source track</h3>
-                    <p>Any OpenAI-compatible chat endpoint works.</p>
+                    <p>Connect your own compatible chat API.</p>
                   </div>
                   <label class="switch">
                     <input id="translation-enabled" type="checkbox" checked>
@@ -366,10 +367,37 @@
                 </div>
                 <div id="translation-panel" class="field-grid compact-fields">
                   <label>
+                    <span>AI provider</span>
+                    <select id="translation-provider">
+                      <option value="">Choose your provider</option>
+                      <option value="openai">OpenAI</option>
+                      <option value="zai">Z.ai (general API)</option>
+                      <option value="custom">Other compatible provider</option>
+                      <option value="local">AI running on this device</option>
+                    </select>
+                  </label>
+                  <label>
+                    <span>Translation endpoint</span>
+                    <input id="translation-url" type="url" autocomplete="off" disabled>
+                  </label>
+                  <label>
+                    <span>Model name from your provider</span>
+                    <input id="translation-model" type="text" autocomplete="off" disabled>
+                  </label>
+                  <div class="provider-destination" role="status" aria-live="polite">
+                    <strong>Where your data goes</strong>
+                    <p id="translation-destination">Choose a provider and endpoint before adding a key.</p>
+                  </div>
+                  <label class="quality-check-option">
+                    <input id="translation-confirm" type="checkbox" disabled>
+                    <span>I trust this destination to receive subtitle text and this provider's key.</span>
+                  </label>
+                  <label>
                     <span>Translation provider API key</span>
-                    <input id="translation-key" type="password" autocomplete="new-password">
+                    <input id="translation-key" type="password" autocomplete="new-password" disabled>
                     <small>
-                      Required for remote providers; optional for AI running on this device.
+                      Confirm the destination first. Changing provider or endpoint clears this key.
+                      A local endpoint may work without a key.
                     </small>
                   </label>
                   <label class="quality-check-option">
@@ -383,22 +411,6 @@
                       </small>
                     </span>
                   </label>
-                  <details class="advanced provider-details">
-                    <summary>Connect your own or local AI</summary>
-                    <label>
-                      <span>Translation endpoint</span>
-                      <input
-                        id="translation-url"
-                        type="url"
-                        value="https://api.z.ai/api/coding/paas/v4"
-                        autocomplete="off"
-                      >
-                    </label>
-                    <label>
-                      <span>Model</span>
-                      <input id="translation-model" type="text" value="glm-5-turbo" autocomplete="off">
-                    </label>
-                  </details>
                 </div>
               </section>
 
@@ -417,29 +429,38 @@
                 </div>
                 <div id="transcription-panel" class="field-grid compact-fields" hidden>
                   <label>
+                    <span>Speech provider</span>
+                    <select id="transcription-provider">
+                      <option value="">Choose your provider</option>
+                      <option value="openai">OpenAI</option>
+                      <option value="custom">Other compatible speech provider</option>
+                      <option value="local">Speech AI running on this device</option>
+                    </select>
+                  </label>
+                  <label>
+                    <span>Transcription endpoint</span>
+                    <input id="transcription-url" type="url" autocomplete="off" disabled>
+                  </label>
+                  <label>
+                    <span>Timestamp-capable model name</span>
+                    <input id="transcription-model" type="text" autocomplete="off" disabled>
+                  </label>
+                  <div class="provider-destination" role="status" aria-live="polite">
+                    <strong>Where your data goes</strong>
+                    <p id="transcription-destination">Choose a provider and endpoint before adding a key.</p>
+                  </div>
+                  <label class="quality-check-option">
+                    <input id="transcription-confirm" type="checkbox" disabled>
+                    <span>I trust this destination to receive audio segments and this provider's key.</span>
+                  </label>
+                  <label>
                     <span>Speech-to-text API key</span>
-                    <input id="transcription-key" type="password" autocomplete="new-password">
+                    <input id="transcription-key" type="password" autocomplete="new-password" disabled>
                     <small>
                       Audio is used only when no source subtitle can be found. A local endpoint can
                       run without a key and keeps the audio on this device.
                     </small>
                   </label>
-                  <details class="advanced provider-details">
-                    <summary>Use a self-hosted or compatible provider</summary>
-                    <label>
-                      <span>Transcription endpoint</span>
-                      <input
-                        id="transcription-url"
-                        type="url"
-                        value="https://api.openai.com/v1"
-                        autocomplete="off"
-                      >
-                    </label>
-                    <label>
-                      <span>Model</span>
-                      <input id="transcription-model" type="text" value="whisper-1" autocomplete="off">
-                    </label>
-                  </details>
                 </div>
               </section>
             </div>

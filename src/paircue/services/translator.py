@@ -4,7 +4,7 @@ import json
 import logging
 import re
 import time
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any
 
 import httpx
@@ -12,7 +12,13 @@ import srt
 from opencc import OpenCC
 
 from paircue import __version__
+from paircue.ai_connections import validate_ai_connection
 from paircue.languages import language_name, opencc_profile
+from paircue.services.provider_privacy import (
+    ProviderResponseTooLargeError,
+    private_provider_diagnostics,
+    safe_provider_failure,
+)
 
 log = logging.getLogger(__name__)
 CODE_FENCE = re.compile(r"^```(?:json)?\s*|\s*```$", re.IGNORECASE)
@@ -29,16 +35,21 @@ class TranslationError(RuntimeError):
 class ProviderConfig:
     name: str
     base_url: str
-    api_key: str
+    api_key: str = field(repr=False)
     model: str
     timeout_seconds: float = 120
     max_attempts: int = 3
     disable_thinking: bool = False
+    provider: str = "custom"
+    approved_origin: str = ""
 
 
 class OpenAICompatibleProvider:
     def __init__(self, config: ProviderConfig) -> None:
         self.config = config
+        self.base_url = validate_ai_connection(
+            config.base_url, config.approved_origin, config.provider
+        )
         self._converters: dict[str, OpenCC] = {}
 
     def translate(
@@ -179,12 +190,12 @@ class OpenAICompatibleProvider:
         last_error = f"{operation} provider failed"
         for attempt in range(1, self.config.max_attempts + 1):
             try:
-                with httpx.Client(
+                with private_provider_diagnostics(), httpx.Client(
                     timeout=self.config.timeout_seconds,
                     follow_redirects=False,
                 ) as client, client.stream(
                     "POST",
-                    f"{self.config.base_url}/chat/completions",
+                    f"{self.base_url}/chat/completions",
                     headers=headers,
                     json=body,
                 ) as response:
@@ -193,7 +204,7 @@ class OpenAICompatibleProvider:
                     for chunk in response.iter_bytes():
                         response_bytes.extend(chunk)
                         if len(response_bytes) > MAX_PROVIDER_RESPONSE_BYTES:
-                            raise TranslationError("provider response exceeds the size limit")
+                            raise ProviderResponseTooLargeError
                 decoded_response = json.loads(response_bytes)
                 content = decoded_response["choices"][0]["message"]["content"]
                 translations = self._parse_response(content, target_language=target_language)
@@ -204,11 +215,13 @@ class OpenAICompatibleProvider:
                         f"coverage mismatch (missing={missing[:5]}, unexpected={unexpected[:5]})"
                     )
                 return translations
-            except (httpx.HTTPError, KeyError, TypeError, ValueError, TranslationError) as exc:
-                last_error = f"{type(exc).__name__}: {exc}"
+            except (
+                httpx.HTTPError, KeyError, IndexError, TypeError, ValueError, TranslationError,
+            ) as exc:
+                last_error = safe_provider_failure(exc)
                 if attempt < self.config.max_attempts:
                     time.sleep(min(2**attempt, 10))
-        raise TranslationError(f"{self.config.name} {operation}: {last_error}")
+        raise TranslationError(f"{self.config.name} {operation}: {last_error}") from None
 
     @staticmethod
     def _validate_cues(cues: dict[int, str]) -> None:

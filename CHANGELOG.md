@@ -1,5 +1,22 @@
 # Changelog
 
+## Unreleased
+
+- Require explicit AI destination confirmation for translation, transcription, and fallback.
+  Show the provider host before key entry; clear entered keys when changing providers or endpoints.
+  Remove implicit translation vendor/model defaults and use neutral example configuration.
+- Existing AI setups must confirm their receiving origins once before reconnecting. Private keys
+  and configuration files are not migrated or deleted. See the [upgrade steps](docs/CONFIGURATION.md#upgrading-an-existing-ai-setup).
+- Preserve parentheses, brackets, speaker labels, lyrics, and sound-effect cues during subtitle
+  preparation, avoiding accidental changes to dialogue meaning.
+- Select audio by source-language metadata for both speech generation and timing alignment instead
+  of always using the first track. Stop ambiguous speech generation before upload; offer a manual
+  per-video stream override through the CLI/configuration. A visual track chooser is still pending.
+- Add synthetic multi-track FFmpeg and no-outbound-request security regressions.
+- Keep AI failure diagnostics private: report safe error categories and numeric HTTP status codes,
+  never raw provider exceptions. Suppress HTTP library diagnostics during AI requests, including
+  debug logs; retain normal application logs and unrelated requests' diagnostics.
+
 ## 0.1.0b15 — 2026-09-05
 
 - Rename the product and repository to **SubDuet** — Two languages. One subtitle.

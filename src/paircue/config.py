@@ -8,6 +8,7 @@ from urllib.parse import urlparse
 from pydantic import Field, SecretStr, ValidationInfo, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+from paircue.ai_connections import normalize_ai_url, validate_ai_connection
 from paircue.languages import canonicalize_language_tag, language_name
 
 
@@ -37,6 +38,7 @@ class PairCueSettings(BaseSettings):
         env_file=".env",
         env_file_encoding="utf-8",
         extra="ignore",
+        hide_input_in_errors=True,
     )
 
     platform: Literal["plex", "jellyfin", "emby", "filesystem"] = "plex"
@@ -63,10 +65,13 @@ class PairCueSettings(BaseSettings):
     sync_enabled: bool = True
     sync_max_offset_seconds: int = Field(default=120, ge=1, le=600)
     sync_min_confidence: float = Field(default=0.24, ge=0.1, le=0.95)
+    audio_stream_index: int | None = Field(default=None, ge=0, le=65535)
     transcription_enabled: bool = False
-    transcription_base_url: str = "https://api.openai.com/v1"
+    transcription_base_url: str = ""
+    transcription_provider: Literal["custom", "openai", "local"] = "custom"
+    transcription_approved_origin: str = ""
     transcription_api_key: SecretStr = SecretStr("")
-    transcription_model: str = Field(default="whisper-1", min_length=1, max_length=100)
+    transcription_model: str = Field(default="whisper-1", max_length=100)
     transcription_timeout_seconds: float = Field(default=300, ge=10, le=900)
     transcription_max_attempts: int = Field(default=3, ge=1, le=6)
     transcription_chunk_seconds: int = Field(default=300, ge=60, le=600)
@@ -87,15 +92,19 @@ class PairCueSettings(BaseSettings):
     bilingual_merge_min_match_ratio: float = Field(default=0.7, ge=0.5, le=1)
 
     translation_enabled: bool = False
-    translation_base_url: str = "https://api.z.ai/api/coding/paas/v4"
+    translation_base_url: str = ""
+    translation_provider: Literal["custom", "openai", "zai", "local"] = "custom"
+    translation_approved_origin: str = ""
     translation_api_key: SecretStr = SecretStr("")
-    translation_model: str = "glm-5-turbo"
-    translation_disable_thinking: bool = True
+    translation_model: str = ""
+    translation_disable_thinking: bool = False
     translation_final_check_enabled: bool = True
     translation_batch_size: int = Field(default=30, ge=1, le=50)
     translation_timeout_seconds: float = Field(default=120, ge=5, le=600)
     translation_max_attempts: int = Field(default=3, ge=1, le=6)
     fallback_base_url: str = ""
+    fallback_provider: Literal["custom", "openai", "zai", "local"] = "custom"
+    fallback_approved_origin: str = ""
     fallback_api_key: SecretStr = SecretStr("")
     fallback_model: str = ""
     fallback_disable_thinking: bool = False
@@ -111,9 +120,6 @@ class PairCueSettings(BaseSettings):
     @field_validator(
         "server_url",
         "plex_url",
-        "translation_base_url",
-        "fallback_base_url",
-        "transcription_base_url",
     )
     @classmethod
     def validate_service_urls(cls, value: str) -> str:
@@ -129,9 +135,7 @@ class PairCueSettings(BaseSettings):
     @field_validator("translation_base_url", "fallback_base_url", "transcription_base_url")
     @classmethod
     def validate_ai_provider_transport(cls, value: str) -> str:
-        if value and urlparse(value).scheme == "http" and not _is_loopback_url(value):
-            raise ValueError("AI provider URLs must use https unless the host is local loopback")
-        return value
+        return normalize_ai_url(value) if value else value
 
     @field_validator("source_language", "target_language")
     @classmethod
@@ -159,6 +163,31 @@ class PairCueSettings(BaseSettings):
         exposed = self.api_host not in {"127.0.0.1", "::1", "localhost"}
         if (self.webhook_enabled or exposed) and len(token) < 32:
             raise ValueError("PAIRCUE_API_TOKEN must contain at least 32 characters")
+        for purpose, enabled in (
+            ("translation", self.translation_enabled),
+            ("transcription", self.transcription_enabled),
+            ("fallback", self.translation_enabled and bool(
+                self.fallback_base_url or self.fallback_model
+                or _secret_value(self.fallback_api_key)
+            )),
+        ):
+            if not enabled:
+                continue
+            base_url = getattr(self, f"{purpose}_base_url")
+            if not base_url:
+                raise ValueError(
+                    f"PAIRCUE_{purpose.upper()}_BASE_URL must be explicitly configured"
+                )
+            try:
+                validate_ai_connection(
+                    base_url,
+                    getattr(self, f"{purpose}_approved_origin"),
+                    getattr(self, f"{purpose}_provider"),
+                )
+            except ValueError as exc:
+                raise ValueError(f"{purpose}: {exc}") from None
+            if not getattr(self, f"{purpose}_model").strip():
+                raise ValueError(f"PAIRCUE_{purpose.upper()}_MODEL must be explicitly configured")
         if (
             self.translation_enabled
             and not _secret_value(self.translation_api_key)
@@ -177,6 +206,12 @@ class PairCueSettings(BaseSettings):
                 "transcription is enabled for a remote provider but "
                 "PAIRCUE_TRANSCRIPTION_API_KEY is empty"
             )
+        if (
+            self.translation_enabled and self.fallback_base_url
+            and not _secret_value(self.fallback_api_key)
+            and not _is_loopback_url(self.fallback_base_url)
+        ):
+            raise ValueError("a remote fallback requires PAIRCUE_FALLBACK_API_KEY")
         opensubtitles_password = _secret_value(self.opensubtitles_password)
         opensubtitles_key = _secret_value(self.opensubtitles_api_key)
         if bool(self.opensubtitles_username) != bool(opensubtitles_password):

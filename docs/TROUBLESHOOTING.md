@@ -54,6 +54,11 @@ provider. You can always place a matching SRT beside the video and run SubDuet a
 
 ## Translation or speech generation fails
 
+If the message asks for `APPROVED_ORIGIN`, your AI destination has not been confirmed, or its host
+has changed. This also affects existing AI setups after upgrading. No AI request is sent until
+the confirmation matches. Follow [the upgrade steps](CONFIGURATION.md#upgrading-an-existing-ai-setup)
+to verify the host yourself; do not share your key or configuration file.
+
 Check the endpoint, model name, account credit, and provider status. SubDuet never prints the key in
 its diagnostic output. Run:
 
@@ -62,6 +67,18 @@ subduet doctor
 ```
 
 If the provider returns an incomplete translation, SubDuet publishes no partial bilingual file.
+
+## SubDuet cannot choose the spoken audio
+
+Check that **Spoken language** matches the audio you want, not the translation language. Files can
+contain a dub, original audio, and commentary with missing or conflicting language labels.
+SubDuet stops speech generation before uploading rather than guessing between them.
+
+The error lists safe stream indexes and language labels. An advanced one-video override is available
+through `subduet learn /path/to/Movie.mkv --audio-stream-index 2`; select the index for your video,
+not necessarily `2`. See [audio selection](CONFIGURATION.md#choosing-the-spoken-audio-track).
+If you prefer not to use the command line, supply a source-language SRT beside the video to bypass
+speech generation. There is not yet a visual audio-track chooser.
 
 ## I changed settings and want to start again
 

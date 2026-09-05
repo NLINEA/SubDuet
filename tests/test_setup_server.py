@@ -3,6 +3,7 @@ import threading
 from pathlib import Path
 
 import httpx
+import pytest
 
 import paircue
 from paircue.setup_server import (
@@ -21,6 +22,43 @@ SINGLE_JELLYFIN_CONFIG = """PAIRCUE_PLATFORM="jellyfin"
 PAIRCUE_SOURCE_LANGUAGE="en"
 PAIRCUE_TARGET_LANGUAGE="ja"
 """
+
+
+@pytest.mark.parametrize("approval", ["", "https://approved.example"])
+@pytest.mark.parametrize("endpoint", ["/config", "/test-platform"])
+def test_unapproved_ai_never_saves_or_calls_connection_test(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture, approval: str, endpoint: str,
+) -> None:
+    output = tmp_path / "paircue.env"
+    attempts = []
+    server = SetupHTTPServer(
+        Path(paircue.__file__).with_name("setup"), output, desktop=True,
+        connection_test=lambda config: attempts.append(config) or "must not run",
+    )
+    thread = threading.Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    config = VALID_CONFIG + '\n'.join([
+        'PAIRCUE_TRANSLATION_ENABLED="true"',
+        'PAIRCUE_TRANSLATION_BASE_URL="https://unapproved.example/v1"',
+        f'PAIRCUE_TRANSLATION_APPROVED_ORIGIN="{approval}"',
+        'PAIRCUE_TRANSLATION_API_KEY="test-only-secret-do-not-render"',
+        'PAIRCUE_TRANSLATION_MODEL="model"',
+    ])
+    try:
+        response = httpx.post(
+            server.origin + endpoint,
+            headers={"Origin": server.origin, "Authorization": f"Bearer {server.token}"},
+            json={"config": config, "mode": "library"},
+        )
+        assert response.status_code == 400
+        assert not output.exists()
+        assert not attempts
+        assert not server.state.saved.is_set()
+        assert "test-only-secret-do-not-render" not in response.text + caplog.text
+    finally:
+        server.shutdown()
+        server.server_close()
+        thread.join(timeout=5)
 
 
 def test_setup_server_serves_local_assets_and_saves_with_backup(tmp_path: Path) -> None:

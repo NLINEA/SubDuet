@@ -23,6 +23,60 @@ const secretIds = new Set([
   "transcription-key",
 ]);
 
+const aiApprovals = { translation: "", transcription: "" };
+
+function aiSelection(prefix) {
+  return JSON.stringify([value(`${prefix}-provider`), value(`${prefix}-url`)]);
+}
+
+function aiDescription(prefix) {
+  try {
+    return aiConnections.describe(value(`${prefix}-provider`), value(`${prefix}-url`));
+  } catch {
+    return null;
+  }
+}
+
+function approvedAI(prefix) {
+  return checked(`${prefix}-enabled`) && checked(`${prefix}-confirm`)
+    && aiApprovals[prefix] === aiSelection(prefix) ? aiDescription(prefix) : null;
+}
+
+function clearAIApproval(prefix) {
+  byId(`${prefix}-key`).value = "";
+  byId(`${prefix}-confirm`).checked = false;
+  aiApprovals[prefix] = "";
+}
+
+function updateAIControls(prefix) {
+  const enabled = checked(`${prefix}-enabled`);
+  const provider = value(`${prefix}-provider`);
+  const description = aiDescription(prefix);
+  byId(`${prefix}-provider`).disabled = !enabled;
+  byId(`${prefix}-url`).disabled = !enabled || !provider;
+  byId(`${prefix}-model`).disabled = !enabled || !provider;
+  byId(`${prefix}-confirm`).disabled = !enabled || !description;
+  byId(`${prefix}-key`).disabled = !approvedAI(prefix);
+  const data = prefix === "translation" ? "Subtitle text" : "Audio segments";
+  byId(`${prefix}-destination`).textContent = description
+    ? `${data} and any key you enter will be sent to ${description.origin}. Nothing is sent until you start a job.`
+    : "Choose a provider and a valid endpoint before adding a key.";
+}
+
+function aiConfig(prefix, maskSecrets) {
+  const connection = aiDescription(prefix);
+  const approved = approvedAI(prefix);
+  const setting = `PAIRCUE_${prefix.toUpperCase()}`;
+  return [
+    configLine(`${setting}_ENABLED`, String(checked(`${prefix}-enabled`))),
+    configLine(`${setting}_PROVIDER`, value(`${prefix}-provider`) || "custom"),
+    configLine(`${setting}_BASE_URL`, connection?.baseUrl || ""),
+    configLine(`${setting}_APPROVED_ORIGIN`, approved?.origin || ""),
+    configLine(`${setting}_API_KEY`, approved ? secretValue(`${prefix}-key`, maskSecrets) : ""),
+    configLine(`${setting}_MODEL`, value(`${prefix}-model`)),
+  ];
+}
+
 function selectedPlatform() {
   return form.querySelector('input[name="platform"]:checked').value;
 }
@@ -41,17 +95,6 @@ function value(id) {
 
 function checked(id) {
   return byId(id).checked;
-}
-
-function isLoopbackHost(hostname) {
-  const normalized = hostname.toLowerCase().replace(/\.$/, "");
-  if (normalized === "localhost" || normalized.endsWith(".localhost")) {
-    return true;
-  }
-  if (/^127(?:\.\d{1,3}){3}$/.test(normalized) || normalized === "::1") {
-    return true;
-  }
-  return false;
 }
 
 function quote(raw) {
@@ -147,20 +190,15 @@ function buildConfig(maskSecrets = false) {
     ),
     "",
     "# Translation",
-    configLine("PAIRCUE_TRANSLATION_ENABLED", String(checked("translation-enabled"))),
-    configLine("PAIRCUE_TRANSLATION_BASE_URL", value("translation-url")),
-    configLine("PAIRCUE_TRANSLATION_API_KEY", secretValue("translation-key", maskSecrets)),
-    configLine("PAIRCUE_TRANSLATION_MODEL", value("translation-model")),
+    ...aiConfig("translation", maskSecrets),
+    configLine("PAIRCUE_TRANSLATION_DISABLE_THINKING", String(value("translation-provider") === "zai")),
     configLine(
       "PAIRCUE_TRANSLATION_FINAL_CHECK_ENABLED",
       String(checked("translation-final-check-enabled")),
     ),
     "",
     "# Speech transcription fallback",
-    configLine("PAIRCUE_TRANSCRIPTION_ENABLED", String(checked("transcription-enabled"))),
-    configLine("PAIRCUE_TRANSCRIPTION_BASE_URL", value("transcription-url")),
-    configLine("PAIRCUE_TRANSCRIPTION_API_KEY", secretValue("transcription-key", maskSecrets)),
-    configLine("PAIRCUE_TRANSCRIPTION_MODEL", value("transcription-model")),
+    ...aiConfig("transcription", maskSecrets),
     "",
     "# Local-only service access",
     configLine("PAIRCUE_WEBHOOK_ENABLED", "false"),
@@ -266,9 +304,14 @@ function setPanelEnabled(toggleId, panelId) {
   const enabled = checked(toggleId);
   const panel = byId(panelId);
   panel.hidden = !enabled;
-  panel.querySelectorAll("input").forEach((input) => {
+  panel.querySelectorAll("input, select").forEach((input) => {
     input.disabled = !enabled;
   });
+  if (toggleId === "translation-enabled" || toggleId === "transcription-enabled") {
+    const prefix = toggleId.replace("-enabled", "");
+    if (!enabled) clearAIApproval(prefix);
+    updateAIControls(prefix);
+  }
 }
 
 function updatePlatform() {
@@ -305,7 +348,7 @@ function updatePlatform() {
 }
 
 function clearValidity() {
-  form.querySelectorAll("input").forEach((input) => input.setCustomValidity(""));
+  form.querySelectorAll("input, select").forEach((input) => input.setCustomValidity(""));
   formError.hidden = true;
   formError.textContent = "";
 }
@@ -317,6 +360,32 @@ function requireField(id, message) {
     return false;
   }
   return true;
+}
+
+function validateAI(prefix) {
+  if (!checked(`${prefix}-enabled`)) return true;
+  let valid = true;
+  if (!value(`${prefix}-provider`)) {
+    byId(`${prefix}-provider`).setCustomValidity("Choose your provider before entering a key.");
+    valid = false;
+  }
+  valid = requireField(`${prefix}-url`, "Enter your provider's endpoint.") && valid;
+  valid = requireField(`${prefix}-model`, "Enter the model name from your provider.") && valid;
+  let description;
+  try {
+    description = aiConnections.describe(value(`${prefix}-provider`), value(`${prefix}-url`));
+  } catch (error) {
+    byId(`${prefix}-url`).setCustomValidity(error.message);
+    return false;
+  }
+  if (!approvedAI(prefix)) {
+    byId(`${prefix}-confirm`).setCustomValidity("Confirm the displayed destination first.");
+    valid = false;
+  }
+  if (!description.local) {
+    valid = requireField(`${prefix}-key`, "Add the key for this provider, or use local AI.") && valid;
+  }
+  return valid;
 }
 
 function validate() {
@@ -362,50 +431,8 @@ function validate() {
   if (checked("search-enabled")) {
     valid = requireField("opensubtitles-key", "Add your OpenSubtitles API key or disable search.") && valid;
   }
-  if (checked("translation-enabled")) {
-    valid = requireField("translation-url", "Enter the translation endpoint.") && valid;
-    valid = requireField("translation-model", "Enter the translation model.") && valid;
-    try {
-      const endpoint = new URL(value("translation-url"));
-      if (endpoint.protocol !== "https:" && !isLoopbackHost(endpoint.hostname)) {
-        byId("translation-url").setCustomValidity(
-          "Use HTTPS, or a localhost address for AI running on this device.",
-        );
-        valid = false;
-      }
-      if (!isLoopbackHost(endpoint.hostname)) {
-        valid = requireField(
-          "translation-key",
-          "Add your API key, or use a localhost AI endpoint that needs no key.",
-        ) && valid;
-      }
-    } catch {
-      byId("translation-url").setCustomValidity("Enter a valid translation URL.");
-      valid = false;
-    }
-  }
-  if (checked("transcription-enabled")) {
-    valid = requireField("transcription-url", "Enter the transcription endpoint.") && valid;
-    valid = requireField("transcription-model", "Enter the transcription model.") && valid;
-    try {
-      const endpoint = new URL(value("transcription-url"));
-      if (endpoint.protocol !== "https:" && !isLoopbackHost(endpoint.hostname)) {
-        byId("transcription-url").setCustomValidity(
-          "Use HTTPS, or a localhost address for speech AI running on this device.",
-        );
-        valid = false;
-      }
-      if (!isLoopbackHost(endpoint.hostname)) {
-        valid = requireField(
-          "transcription-key",
-          "Add your API key, or use a localhost speech endpoint that needs no key.",
-        ) && valid;
-      }
-    } catch {
-      byId("transcription-url").setCustomValidity("Enter a valid transcription URL.");
-      valid = false;
-    }
-  }
+  valid = validateAI("translation") && valid;
+  valid = validateAI("transcription") && valid;
   if (!valid || !form.checkValidity()) {
     formError.textContent = "Check the highlighted fields, then try again.";
     formError.hidden = false;
@@ -782,6 +809,29 @@ form.addEventListener("input", () => {
   clearValidity();
   updatePreview();
   updateNextStep();
+});
+
+["translation", "transcription"].forEach((prefix) => {
+  byId(`${prefix}-provider`).addEventListener("change", () => {
+    clearAIApproval(prefix);
+    byId(`${prefix}-url`).value = aiConnections.presets[value(`${prefix}-provider`)] || "";
+    byId(`${prefix}-model`).value = "";
+    updateAIControls(prefix);
+    updatePreview();
+  });
+  byId(`${prefix}-url`).addEventListener("input", () => {
+    clearAIApproval(prefix);
+    updateAIControls(prefix);
+  });
+  byId(`${prefix}-confirm`).addEventListener("change", () => {
+    if (checked(`${prefix}-confirm`) && aiDescription(prefix)) {
+      aiApprovals[prefix] = aiSelection(prefix);
+    } else {
+      clearAIApproval(prefix);
+    }
+    updateAIControls(prefix);
+    updatePreview();
+  });
 });
 
 form.querySelectorAll('input[name="mode"]').forEach((input) => {

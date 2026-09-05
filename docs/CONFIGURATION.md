@@ -72,17 +72,47 @@ targets can also use a safe OpenCC script conversion when applicable.
 
 ## Translation provider
 
-SubDuet works with OpenAI-compatible translation endpoints:
+SubDuet works with OpenAI-compatible translation endpoints. Visual setup asks you to select a
+provider, review its receiving host, and confirm the destination **before** you can enter a key.
+Changing the provider or endpoint clears the entered key and confirmation. No translation provider
+or model is selected automatically.
+
+For an environment file, verify the endpoint in your provider's documentation before adding its
+key and explicitly approving the origin (scheme, host, optional port; no path):
 
 ```dotenv
+PAIRCUE_TRANSLATION_ENABLED=true
+PAIRCUE_TRANSLATION_PROVIDER=custom
 PAIRCUE_TRANSLATION_BASE_URL=https://your-provider.example/v1
+PAIRCUE_TRANSLATION_APPROVED_ORIGIN=https://your-provider.example
 PAIRCUE_TRANSLATION_API_KEY=your-api-key
 PAIRCUE_TRANSLATION_MODEL=your-model
 PAIRCUE_TRANSLATION_FINAL_CHECK_ENABLED=true
 ```
 
-A second compatible provider can be configured as fallback. Subtitle text is sent to an enabled
-translation provider, so review its privacy policy, retention, pricing, and model terms first.
+Use `openai` for `https://api.openai.com`, `zai` for `https://api.z.ai`, `local` for a loopback
+server on this device, or `custom` for another compatible provider. Named providers reject other
+origins. URL credentials, query strings, and fragments are not accepted. An approved origin records
+your choice; it does not certify a custom provider's trustworthiness or its model compatibility.
+
+A second compatible provider can be configured through `PAIRCUE_FALLBACK_PROVIDER`, `BASE_URL`,
+`APPROVED_ORIGIN`, `API_KEY`, and `MODEL` (all with the `PAIRCUE_FALLBACK_` prefix). It needs its
+own destination confirmation and credentials. Leave all fallback connection fields empty if unused.
+Subtitle text is sent to an enabled provider, so review its privacy policy, retention, pricing, and
+model terms first.
+
+### Upgrading an existing AI setup
+
+The next release requires destination confirmation for existing translation, transcription, and
+fallback connections. A missing or mismatched `APPROVED_ORIGIN` stops the connection before a
+request is sent. Your existing keys and configuration files are not migrated or deleted.
+
+Reopen setup to choose and confirm each provider, or privately edit your environment file after
+checking the endpoint. For example, an existing `https://api.openai.com/v1` endpoint needs
+`PAIRCUE_TRANSLATION_APPROVED_ORIGIN=https://api.openai.com` for translation. Transcription uses
+`PAIRCUE_TRANSCRIPTION_APPROVED_ORIGIN`; fallback uses `PAIRCUE_FALLBACK_APPROVED_ORIGIN`.
+Do not copy an origin from an error message or approve a host you do not recognize. If changing
+providers, replace the key too. Never paste your environment file into an issue or chat.
 
 The final quality check is a second request through the same configured provider. It receives the
 source text, draft translation, language/style settings, title or episode context, and glossary. It
@@ -118,25 +148,47 @@ terms, and permission to use downloaded subtitle content remain the user's respo
 
 ## Generate subtitles from speech
 
-If no source subtitle exists, SubDuet can extract the first audio track into bounded FLAC chunks
+If no source subtitle exists, SubDuet can extract the selected spoken audio into bounded FLAC chunks
 and call an OpenAI-compatible transcription endpoint. Every returned segment and timestamp is
 validated before the source SRT is published.
 
 ```dotenv
 PAIRCUE_TRANSCRIPTION_ENABLED=true
+PAIRCUE_TRANSCRIPTION_PROVIDER=openai
 PAIRCUE_TRANSCRIPTION_BASE_URL=https://api.openai.com/v1
+PAIRCUE_TRANSCRIPTION_APPROVED_ORIGIN=https://api.openai.com
 PAIRCUE_TRANSCRIPTION_API_KEY=your-api-key
 PAIRCUE_TRANSCRIPTION_MODEL=whisper-1
 ```
 
-`whisper-1` is the safe default because its documented API supports timestamped `verbose_json`
-segments. A compatible self-hosted endpoint can also be used. Transcription is off by default and
+Choose a model that supports timestamped `verbose_json` segments; the example uses `whisper-1`.
+A compatible self-hosted endpoint can also be used. Transcription is off by default and
 sends extracted audio to the configured endpoint when enabled. FFmpeg is required and not bundled.
 Remote endpoints require HTTPS and an API key; loopback endpoints may use HTTP without a key.
 
 With **Do everything automatically** selected in visual setup, this stage becomes the final
 fallback after existing and downloaded source subtitles. SubDuet does not upload audio when it has
 already found a usable source track.
+
+### Choosing the spoken audio track
+
+FFprobe reads each audio stream's language metadata. SubDuet prefers the selected source language,
+excludes marked commentary/audio-description tracks, and uses a unique default within matching
+candidates. It does not identify spoken language by listening to the audio. A single unlabelled
+track can be used; multiple unlabelled tracks, unresolved matches, or a known language mismatch
+stop speech generation before upload. Automatic timing alignment uses the same selection policy
+and keeps existing timing if selection fails.
+
+For an ambiguous video, use the global stream index listed in the safe error message:
+
+```bash
+subduet learn /path/to/Movie.mkv --audio-stream-index 2
+```
+
+`PAIRCUE_AUDIO_STREAM_INDEX=2` provides the same override in an environment file. This is FFmpeg's
+global stream index, not “the second audio track.” It overrides language/commentary checks, so use
+it only after verifying that particular video. Do not reuse an index across a mixed library. A
+visual per-video audio chooser is not available yet.
 
 ## Pair two existing subtitle languages
 
@@ -185,7 +237,8 @@ official Webhook Plugin supports custom generic templates. Plex can use its nati
 - `Movie.<target>.srt` — target-language subtitle.
 - `Movie.mul.srt` — both languages sharing one timeline.
 
-Existing source and target subtitles are preserved byte-for-byte by default. Non-dialogue cleanup
-affects the new target and bilingual result in memory, not the original file. The advanced
-`PAIRCUE_CLEAN_SOURCE_OUTPUT=true` option explicitly rewrites the source with the synchronized,
-dialogue-only cues; leave it `false` unless that destructive behavior is intentional.
+Existing source and target subtitles are preserved byte-for-byte by default. Working copies
+normalize whitespace but retain parentheses, brackets, speaker labels, sound-effect cues, and
+lyrics: removing these by pattern can change the meaning of dialogue. The advanced
+`PAIRCUE_CLEAN_SOURCE_OUTPUT=true` option explicitly rewrites the source with synchronized,
+whitespace-normalized cues; leave it `false` unless that destructive behavior is intentional.

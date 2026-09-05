@@ -37,6 +37,20 @@ select {
   font: inherit;
 }
 
+.provider-destination {
+  grid-column: 1 / -1;
+  padding: 16px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--panel-strong);
+  overflow-wrap: anywhere;
+}
+
+.provider-destination p {
+  margin: 8px 0 0;
+  color: var(--muted);
+}
+
 button,
 summary,
 label,
