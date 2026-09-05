@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Build and stage a self-contained PairCue desktop release for the current OS."""
+"""Build and stage a self-contained SubDuet desktop release for the current OS."""
 
 from __future__ import annotations
 
@@ -31,13 +31,13 @@ def _labels() -> tuple[str, str]:
 
 def _built_payload(dist_dir: Path) -> tuple[Path, Path]:
     if sys.platform == "darwin":
-        payload = dist_dir / "PairCue.app"
-        executable = payload / "Contents" / "MacOS" / "PairCue"
+        payload = dist_dir / "SubDuet.app"
+        executable = payload / "Contents" / "MacOS" / "SubDuet"
     elif sys.platform == "win32":
-        payload = dist_dir / "PairCue.exe"
+        payload = dist_dir / "SubDuet.exe"
         executable = payload
     else:
-        payload = dist_dir / "PairCue"
+        payload = dist_dir / "SubDuet"
         executable = payload
     if not payload.exists() or not executable.is_file():
         raise RuntimeError(f"PyInstaller did not create the expected desktop payload: {payload}")
@@ -61,12 +61,12 @@ def main() -> int:
     work_dir = _scoped(root, Path("build/desktop"))
     stage_parent = _scoped(root, Path("release/stage"))
     system, architecture = _labels()
-    stage = stage_parent / f"PairCue-{system}-{architecture}"
+    stage = stage_parent / f"SubDuet-{system}-{architecture}"
 
     try:
         import PyInstaller.__main__
     except ImportError as exc:
-        raise RuntimeError("install PairCue's release dependencies before building") from exc
+        raise RuntimeError("install SubDuet's release dependencies before building") from exc
 
     for target in (dist_dir, work_dir, stage_parent):
         if target.exists():
@@ -77,7 +77,7 @@ def main() -> int:
 
     options = [
         str(root / "src" / "paircue" / "desktop.py"),
-        "--name=PairCue",
+        "--name=SubDuet",
         "--windowed",
         "--noupx",
         "--noconfirm",
@@ -89,6 +89,7 @@ def main() -> int:
         f"--specpath={work_dir}",
     ]
     if sys.platform == "darwin":
+        # Keep the installed app identity stable across the public rename.
         options.extend(("--onedir", "--osx-bundle-identifier=io.paircue.desktop"))
     else:
         options.append("--onefile")
@@ -145,12 +146,12 @@ def main() -> int:
             "-m",
             "scripts.check_runtime_licenses",
             "--sbom",
-            str(stage / "paircue-sbom.cdx.json"),
+            str(stage / "subduet-sbom.cdx.json"),
         ],
         root,
     )
     (stage / "BUILD-INFO.txt").write_text(
-        f"PairCue {version('paircue')} desktop beta\nPlatform: {system} {architecture}\n"
+        f"SubDuet {version('subduet')} desktop beta\nPlatform: {system} {architecture}\n"
         f"Python: {sys.version.split()[0]}\nFFmpeg bundled: no\n",
         encoding="utf-8",
     )

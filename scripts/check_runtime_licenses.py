@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Fail closed when PairCue's installed runtime graph violates its license policy."""
+"""Fail closed when SubDuet's installed runtime graph violates its license policy."""
 
 from __future__ import annotations
 
@@ -20,7 +20,7 @@ from packaging.utils import canonicalize_name
 
 def _arguments() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--distribution", default="paircue")
+    parser.add_argument("--distribution", default="subduet")
     parser.add_argument("--policy", type=Path, default=Path("license-policy.toml"))
     parser.add_argument("--sbom", type=Path)
     return parser.parse_args()
@@ -131,7 +131,7 @@ def _write_sbom(path: Path, components: list[dict[str, Any]]) -> None:
         "version": 1,
         "metadata": {
             "component": next(
-                item for item in components if canonicalize_name(item["name"]) == "paircue"
+                item for item in components if canonicalize_name(item["name"]) == "subduet"
             )
         },
         "components": components,

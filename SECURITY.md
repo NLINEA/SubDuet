@@ -12,7 +12,7 @@ suggested mitigation. Never include live media-server, NAS, or translation crede
 
 ## Deployment boundary
 
-PairCue is designed for a trusted home network. Do not expose either service directly to the public
+SubDuet is designed for a trusted home network. Do not expose either service directly to the public
 internet. Use a VPN or an authenticated reverse proxy and keep the bearer tokens separate.
 
 The visual setup wizard binds to a random `127.0.0.1` port and accepts configuration writes only
@@ -32,8 +32,8 @@ Desktop Quick Pair accepts actions only from the tokenized same-origin setup pag
 inputs are read directly from paths returned by native operating-system file windows, are limited
 to 16 MB each, and are never uploaded. The browser receives only the new output filename.
 
-Frozen desktop apps store that file under `~/Library/Application Support/PairCue` on macOS,
-`%APPDATA%\\PairCue` on Windows, or `$XDG_CONFIG_HOME/paircue` (normally `~/.config/paircue`) on
+Frozen desktop apps store that file under `~/Library/Application Support/SubDuet` on macOS,
+`%APPDATA%\\SubDuet` on Windows, or `$XDG_CONFIG_HOME/paircue` (normally `~/.config/paircue`) on
 Linux. Source installs retain `paircue.env` in the folder where setup was started.
 
 The dashboard also binds to `127.0.0.1` by default. Desktop launches pass its bearer token in the
@@ -41,22 +41,22 @@ URL fragment, which is not sent in the HTTP request, then remove it from browser
 first authenticated API call. The page keeps the token in memory only and displays filenames rather
 than full media paths. Do not expose the dashboard port directly to the internet.
 
-When transcription is enabled, PairCue sends extracted audio chunks to the configured endpoint.
+When transcription is enabled, SubDuet sends extracted audio chunks to the configured endpoint.
 When translation is enabled, it sends subtitle dialogue to the configured endpoint. These features
 are disabled or unconfigured by default; review the provider's access, retention, and privacy terms
 before enabling either one.
 
 Remote translation and transcription endpoints must use HTTPS and require their own API key.
 Loopback endpoints (`localhost`, `127.0.0.0/8`, or `::1`) may use HTTP and may omit a key for a
-model running on the same device. PairCue does not implement unofficial OAuth flows or reuse a
+model running on the same device. SubDuet does not implement unofficial OAuth flows or reuse a
 consumer AI-product login.
 
 The optional AI final quality check sends only source text, the draft translation, language/style
 settings, title or episode context, and the local glossary through the same configured translation
 provider. It never sends media, audio, local paths, media-server credentials, or the provider key
-in the request body. The model cannot alter subtitle timing. PairCue rejects incomplete, extra,
+in the request body. The model cannot alter subtitle timing. SubDuet rejects incomplete, extra,
 empty, malformed, or oversized responses before writing either translated output.
 
-PairCue does not collect model conversations, prompts used to develop the project, editor history,
+SubDuet does not collect model conversations, prompts used to develop the project, editor history,
 or local AI-assistant metadata. Those materials are not runtime inputs and are blocked from release
 artifacts by project policy and automated private-context checks.

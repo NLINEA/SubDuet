@@ -1,9 +1,10 @@
+# Keep the Compose project and volume names to reuse existing private state on upgrade.
 name: paircue
 
 services:
   core:
     build: .
-    image: paircue:0.1.0b14
+    image: subduet:0.1.0b15
     restart: unless-stopped
     env_file: paircue.env
     user: "${PUID:-10001}:${PGID:-10001}"
@@ -29,8 +30,8 @@ services:
   downloads:
     profiles: ["downloads"]
     build: .
-    image: paircue:0.1.0b14
-    command: ["paircue", "downloads"]
+    image: subduet:0.1.0b15
+    command: ["subduet", "downloads"]
     restart: unless-stopped
     env_file: downloads.env
     user: "${PUID:-10001}:${PGID:-10001}"

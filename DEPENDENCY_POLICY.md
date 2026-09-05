@@ -1,6 +1,6 @@
 # Dependency and provenance policy
 
-PairCue's application code is independently implemented for this repository. Contributors must not
+SubDuet's application code is independently implemented for this repository. Contributors must not
 copy, port, translate, decompile, or closely adapt source code from competing subtitle products.
 Public standards, academic descriptions, and official service documentation may be used to learn
 required behaviour, but code must be written independently.
@@ -20,13 +20,13 @@ Every change to runtime dependencies must:
 3. produce the CycloneDX SBOM in CI; and
 4. avoid vendoring dependency source, model weights, media, or subtitle samples.
 
-The gate walks the installed production graph from PairCue and fails closed on unknown license
+The gate walks the installed production graph from SubDuet and fails closed on unknown license
 metadata. `license_overrides` may be used only after a manual upstream-license review, with the
 reason recorded in the pull request.
 
 Desktop archives use PyInstaller only at build time under its GPL-2.0-or-later Bootloader Exception.
-Each archive must contain PairCue's license and notices, a runtime CycloneDX SBOM, the Python
-license, and the installed license or notice files for every distribution in PairCue's runtime
+Each archive must contain SubDuet's license and notices, a runtime CycloneDX SBOM, the Python
+license, and the installed license or notice files for every distribution in SubDuet's runtime
 dependency graph. The archive also carries the complete packaged license files for PyInstaller and
 its official hooks. The build fails closed if one of those distributions has no packaged license.
 
@@ -34,9 +34,9 @@ its official hooks. The build fails closed if one of those distributions has no 
 
 - Subtitle-provider integrations must use documented official APIs and user-supplied credentials.
   HTML scraping, bypassing quotas, or copying provider client code is not accepted.
-- PairCue does not redistribute downloaded subtitles. Users are responsible for provider terms and
+- SubDuet does not redistribute downloaded subtitles. Users are responsible for provider terms and
   for the rights to download, transform, and store subtitle content in their jurisdiction.
-- FFmpeg is an external executable. Its effective license depends on how it was built. PairCue does
+- FFmpeg is an external executable. Its effective license depends on how it was built. SubDuet does
   not include it in source or desktop archives and does not publish a prebuilt container image;
   anyone distributing a locally built image must satisfy the FFmpeg build's applicable license and
   source-notice obligations.
@@ -46,5 +46,5 @@ its official hooks. The build fails closed if one of those distributions has no 
 ## Contributions
 
 All commits must carry a DCO sign-off. Contributors certify that they wrote the change or otherwise
-have the right to submit it under PairCue's MIT license. Generated or AI-assisted code receives the
+have the right to submit it under SubDuet's MIT license. Generated or AI-assisted code receives the
 same provenance and review requirements as manually typed code.

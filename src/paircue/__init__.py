@@ -1,3 +1,3 @@
-"""PairCue: aligned bilingual subtitles for Plex, Jellyfin, Emby, and media folders."""
+"""SubDuet: aligned bilingual subtitles for Plex, Jellyfin, Emby, and media folders."""
 
-__version__ = "0.1.0b14"
+__version__ = "0.1.0b15"

@@ -129,7 +129,7 @@ class CoreRuntime:
         except Exception:
             self._set_scan_state(
                 "error",
-                f"PairCue could not scan {self.media_source.platform.title()}. "
+                f"SubDuet could not scan {self.media_source.platform.title()}. "
                 "Check the platform connection and media folder.",
             )
             raise

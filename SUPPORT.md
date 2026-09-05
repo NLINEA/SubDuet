@@ -1,17 +1,17 @@
-# PairCue support
+# SubDuet support
 
 ## Usage questions
 
-Use [GitHub Discussions](https://github.com/NLINEA/PairCue/discussions) for setup help,
+Use [GitHub Discussions](https://github.com/NLINEA/SubDuet/discussions) for setup help,
 player behavior, language-pair questions, and ideas that are not yet a clear bug. Check
 [Troubleshooting](docs/TROUBLESHOOTING.md) first.
 
 ## Reproducible bugs
 
-Use the guided [bug form](https://github.com/NLINEA/PairCue/issues/new?template=bug_report.yml).
+Use the guided [bug form](https://github.com/NLINEA/SubDuet/issues/new?template=bug_report.yml).
 Include:
 
-- PairCue version from `paircue --version` or the release archive name;
+- SubDuet version from `subduet --version` or the release archive name;
 - computer and media platform;
 - the result you chose;
 - exact safe error wording;
@@ -25,5 +25,5 @@ screenshots, personal logs, or subtitle content you do not have permission to sh
 Do not open a public issue. Follow [SECURITY.md](SECURITY.md) and use GitHub private vulnerability
 reporting.
 
-PairCue is community-maintained beta software. Response times are best effort; clear reproduction
+SubDuet is community-maintained beta software. Response times are best effort; clear reproduction
 steps and a minimal project-owned sample make a report much easier to act on.

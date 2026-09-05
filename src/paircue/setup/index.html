@@ -7,20 +7,20 @@
       http-equiv="Content-Security-Policy"
       content="default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self'; font-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'"
     >
-    <title>PairCue Setup</title>
+    <title>SubDuet Setup</title>
     <link rel="icon" href="favicon.svg" type="image/svg+xml">
     <meta
       name="description"
-      content="Create your first private bilingual subtitle with a guided PairCue setup."
+      content="Create your first private bilingual subtitle with a guided SubDuet setup."
     >
     <link rel="stylesheet" href="setup.css">
     <script src="setup.js" defer></script>
   </head>
   <body>
     <header class="topbar">
-      <a class="brand" href="#main" aria-label="PairCue setup home">
+      <a class="brand" href="#main" aria-label="SubDuet setup home">
         <span class="brand-mark" aria-hidden="true"><i></i><i></i></span>
-        <span>PairCue</span>
+        <span>SubDuet</span>
       </a>
       <span class="privacy-badge">Private setup</span>
     </header>
@@ -28,14 +28,14 @@
     <main id="main" class="shell">
       <section class="hero" aria-labelledby="page-title">
         <p class="eyebrow">SETUP WIZARD</p>
-        <h1 id="page-title">Your library.<br><span>Two languages.</span></h1>
+        <h1 id="page-title">Two languages.<br><span>One subtitle.</span></h1>
         <p class="lede">
-          Choose where you watch and what you want to learn. PairCue will guide you to your first
+          Choose where you watch and what you want to learn. SubDuet will guide you to your first
           bilingual subtitle.
         </p>
         <div class="privacy-note" role="note">
           <strong>Your setup stays on this device.</strong>
-          It communicates only with PairCue on this device and has no analytics, account, or
+          It communicates only with SubDuet on this device and has no analytics, account, or
           stored form data.
         </div>
         <div id="system-check" class="system-check" role="status" aria-live="polite">
@@ -56,7 +56,7 @@
               <p class="step-kicker">YOUR PLATFORM</p>
               <h2 id="platform-heading">Where will you watch?</h2>
               <p class="section-copy">
-                Choose this first. PairCue will tailor the next steps and create a standard
+                Choose this first. SubDuet will tailor the next steps and create a standard
                 subtitle that works in that player.
               </p>
               <div class="choice-grid platform-grid" role="radiogroup" aria-label="Media platform">
@@ -94,7 +94,7 @@
                 <button id="change-platform" type="button">Change platform</button>
               </div>
               <p class="step-kicker">YOUR FIRST RESULT</p>
-              <h2 id="journey-heading">What should PairCue do first?</h2>
+              <h2 id="journey-heading">What should SubDuet do first?</h2>
 
               <aside id="quick-pair-card" class="quick-pair-card" hidden>
                 <div>
@@ -102,7 +102,7 @@
                   <h3>Make one bilingual subtitle now</h3>
                   <p>
                     Already have two SRT files? Choose the spoken subtitle, then the learning
-                    subtitle. PairCue combines them locally with no account, API key, or upload.
+                    subtitle. SubDuet combines them locally with no account, API key, or upload.
                   </p>
                 </div>
                 <div class="quick-pair-actions">
@@ -119,7 +119,7 @@
                 <p id="quick-pair-status" class="quick-pair-status" role="status" aria-live="polite"></p>
                 <div id="quick-feedback" class="feedback-prompt" hidden>
                   <a
-                    href="https://github.com/NLINEA/PairCue/issues/new?template=beta_report.yml"
+                    href="https://github.com/NLINEA/SubDuet/issues/new?template=beta_report.yml"
                     target="_blank"
                     rel="noopener noreferrer"
                   >Tell us if this first result worked</a>
@@ -127,7 +127,7 @@
                 </div>
               </aside>
 
-              <p class="subsection-heading">Or let PairCue handle a video or library</p>
+              <p class="subsection-heading">Or let SubDuet handle a video or library</p>
               <div class="choice-grid" role="radiogroup" aria-label="Starting point">
                 <label class="choice-card recommended-card">
                   <input type="radio" name="mode" value="single" checked>
@@ -144,11 +144,11 @@
 
               <div id="single-note" class="journey-note">
                 <strong>No Docker required for one video.</strong>
-                PairCue saves your language choices, opens a video window, and shows the finished
+                SubDuet saves your language choices, opens a video window, and shows the finished
                 bilingual subtitle in your file manager.
                 <span id="cli-pair-note">
                   If you already have both subtitle files, the command-line option is
-                  <code>paircue pair</code>.
+                  <code>subduet pair</code>.
                 </span>
               </div>
 
@@ -171,7 +171,7 @@
             <div class="step-number" aria-hidden="true">3</div>
             <div class="step-content">
               <p class="step-kicker">CONNECT YOUR LIBRARY</p>
-              <h2 id="library-heading">Where can PairCue reach your media?</h2>
+              <h2 id="library-heading">Where can SubDuet reach your media?</h2>
               <div class="field-grid inset-panel">
                 <div class="field-control">
                   <label for="host-media-path">Media folder on this machine or NAS</label>
@@ -179,7 +179,7 @@
                     <input id="host-media-path" type="text" value="/volume1/Media" autocomplete="off">
                     <button id="choose-media-folder" type="button" hidden>Choose folder</button>
                   </div>
-                  <small>PairCue needs read and write access. On a desktop, choose the mounted folder.</small>
+                  <small>SubDuet needs read and write access. On a desktop, choose the mounted folder.</small>
                 </div>
                 <label id="local-port-field">
                   <span>Local status page port</span>
@@ -239,7 +239,7 @@
                     <input id="pgid" type="text" inputmode="numeric" value="10001" autocomplete="off">
                   </label>
                 </div>
-                <p class="hint">Change these only if PairCue cannot write beside your videos.</p>
+                <p class="hint">Change these only if SubDuet cannot write beside your videos.</p>
               </details>
             </div>
           </section>
@@ -304,7 +304,7 @@
           <div class="step-content">
             <p class="step-kicker">AUTOMATION</p>
             <h2 id="automation-heading">How should missing subtitles be filled?</h2>
-            <p class="section-copy">Start with what you already have. PairCue will suggest the simplest setup.</p>
+            <p class="section-copy">Start with what you already have. SubDuet will suggest the simplest setup.</p>
             <div class="preset-grid" role="radiogroup" aria-label="Existing subtitle situation">
               <label class="preset-card">
                 <input type="radio" name="subtitle-preset" value="both">
@@ -323,7 +323,7 @@
               </label>
             </div>
             <div class="journey-note">
-              PairCue tries the enabled options in order and stops as soon as it has enough. Full
+              SubDuet tries the enabled options in order and stops as soon as it has enough. Full
               automation uses speech generation only when no source subtitle can be found; you can
               turn it off below. Provider API keys come from your own accounts. They stay in your
               private local config and are sent only to the provider you choose.
@@ -449,8 +449,8 @@
         <section id="finish-step" class="finish" aria-labelledby="finish-heading">
           <div>
             <p class="step-kicker">READY</p>
-            <h2 id="finish-heading">Save your PairCue setup</h2>
-            <p>PairCue saves it privately on this device and shows the location after saving.</p>
+            <h2 id="finish-heading">Save your SubDuet setup</h2>
+            <p>SubDuet saves it privately on this device and shows the location after saving.</p>
           </div>
           <div class="button-row">
             <button id="copy-config" class="secondary-button" type="button">Copy config</button>
@@ -472,12 +472,12 @@
         <span id="next-number" class="next-number">NEXT</span>
         <div>
           <h2 id="next-heading">Try one video</h2>
-          <p id="next-copy">PairCue will guide you after the setup is saved.</p>
+          <p id="next-copy">SubDuet will guide you after the setup is saved.</p>
           <pre id="next-command" class="next-command"></pre>
-          <a id="next-link" class="dashboard-link" href="/" hidden>Open PairCue dashboard</a>
+          <a id="next-link" class="dashboard-link" href="/" hidden>Open SubDuet dashboard</a>
           <div id="next-feedback" class="feedback-prompt" hidden>
             <a
-              href="https://github.com/NLINEA/PairCue/issues/new?template=beta_report.yml"
+              href="https://github.com/NLINEA/SubDuet/issues/new?template=beta_report.yml"
               target="_blank"
               rel="noopener noreferrer"
             >Tell us if this first result worked</a>
@@ -488,7 +488,7 @@
     </main>
 
     <footer>
-      PairCue Setup · Setup stays on this device · No analytics
+      SubDuet Setup · Setup stays on this device · No analytics
     </footer>
   </body>
 </html>

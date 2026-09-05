@@ -1,6 +1,6 @@
-# PairCue roadmap
+# SubDuet roadmap
 
-PairCue's product promise is narrow: turn a private media library into a portable bilingual
+SubDuet's product promise is narrow: turn a private media library into a portable bilingual
 learning library, without replacing the player's existing experience.
 
 This is a direction, not a release-date promise. Priorities may change after real beta feedback.
@@ -28,10 +28,10 @@ This is a direction, not a release-date promise. Priorities may change after rea
 
 ## Deliberately not the headline
 
-PairCue is not trying to become a media player, hosted subtitle account, analytics product, torrent
+SubDuet is not trying to become a media player, hosted subtitle account, analytics product, torrent
 client, or replacement for library managers. Download Station remains optional and isolated. New
 features should strengthen the bilingual-learning result, privacy, or ease of use.
 
-Discuss roadmap ideas in [GitHub Discussions](https://github.com/NLINEA/PairCue/discussions)
+Discuss roadmap ideas in [GitHub Discussions](https://github.com/NLINEA/SubDuet/discussions)
 or submit a focused
-[feature request](https://github.com/NLINEA/PairCue/issues/new?template=feature_request.yml).
+[feature request](https://github.com/NLINEA/SubDuet/issues/new?template=feature_request.yml).

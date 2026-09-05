@@ -25,8 +25,13 @@ SKIPPED_DIRECTORIES = {
 }
 SKIPPED_FILES = {".coverage"}
 SENSITIVE_SUFFIXES = {".key", ".p12", ".pfx"}
-SENSITIVE_NAMES = re.compile(r"^(?:\.env(?:\..+)?|credentials.*\.json)$", re.IGNORECASE)
-ALLOWED_EXAMPLE_NAMES = {".env.example", "downloads.env.example", "paircue.env.example"}
+SENSITIVE_NAMES = re.compile(
+    r"^(?:\.env(?:\..+)?|(?:paircue|subduet|downloads)\.env(?:\..+)?|credentials.*\.json)$",
+    re.IGNORECASE,
+)
+ALLOWED_EXAMPLE_NAMES = {
+    ".env.example", "downloads.env.example", "paircue.env.example", "subduet.env.example",
+}
 PRIVATE_CONTEXT = (
     (
         "private macOS path",

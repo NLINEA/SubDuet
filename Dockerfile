@@ -1,6 +1,6 @@
 FROM python:3.12-slim
 
-# This Dockerfile is provided for local source builds. PairCue does not publish an official
+# This Dockerfile is provided for local source builds. SubDuet does not publish an official
 # prebuilt image. Debian's FFmpeg package may be GPL-enabled; see THIRD_PARTY_NOTICES.md before
 # distributing a resulting image.
 
@@ -23,4 +23,4 @@ RUN python -m pip install --no-cache-dir .
 
 USER 10001:10001
 ENTRYPOINT ["/usr/bin/tini", "--"]
-CMD ["paircue", "serve"]
+CMD ["subduet", "serve"]

@@ -25,8 +25,8 @@ jobs:
       - run: python scripts/check_docs.py
       - run: python scripts/check_secrets.py --history
       - run: ruff check .
-      - run: mypy src/paircue
-      - run: pytest --cov=paircue --cov-report=term-missing --cov-fail-under=60
+      - run: mypy src/paircue src/subduet
+      - run: pytest --cov=paircue --cov=subduet --cov-report=term-missing --cov-fail-under=60
       - run: python scripts/check_runtime_licenses.py
       - run: pip-audit
 
@@ -39,20 +39,20 @@ jobs:
         include:
           - runner: macos-15
             label: macOS arm64
-            artifact: paircue-macos-arm64
-            archive: PairCue-macOS-arm64.zip
+            artifact: subduet-macos-arm64
+            archive: SubDuet-macOS-arm64.zip
           - runner: macos-15-intel
             label: macOS Intel
-            artifact: paircue-macos-x64
-            archive: PairCue-macOS-x64.zip
+            artifact: subduet-macos-x64
+            archive: SubDuet-macOS-x64.zip
           - runner: windows-latest
             label: Windows x64
-            artifact: paircue-windows-x64
-            archive: PairCue-windows-x64.zip
+            artifact: subduet-windows-x64
+            archive: SubDuet-windows-x64.zip
           - runner: ubuntu-latest
             label: Linux x64
-            artifact: paircue-linux-x64
-            archive: PairCue-linux-x64.tar.gz
+            artifact: subduet-linux-x64
+            archive: SubDuet-linux-x64.tar.gz
     runs-on: ${{ matrix.runner }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
@@ -68,14 +68,14 @@ jobs:
         run: python scripts/check_secrets.py --path release/stage
       - name: Archive macOS build
         if: runner.os == 'macOS'
-        run: ditto -c -k --sequesterRsrc --keepParent release/stage/PairCue-* "release/${{ matrix.archive }}"
+        run: ditto -c -k --sequesterRsrc --keepParent release/stage/SubDuet-* "release/${{ matrix.archive }}"
       - name: Archive Windows build
         if: runner.os == 'Windows'
         shell: pwsh
-        run: Compress-Archive -Path release/stage/PairCue-* -DestinationPath "release/${{ matrix.archive }}"
+        run: Compress-Archive -Path release/stage/SubDuet-* -DestinationPath "release/${{ matrix.archive }}"
       - name: Archive Linux build
         if: runner.os == 'Linux'
-        run: tar -C release/stage -czf "${{ github.workspace }}/release/${{ matrix.archive }}" PairCue-linux-x64
+        run: tar -C release/stage -czf "${{ github.workspace }}/release/${{ matrix.archive }}" SubDuet-linux-x64
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: ${{ matrix.artifact }}
@@ -96,14 +96,14 @@ jobs:
           merge-multiple: true
       - name: Verify all four release archives are present
         run: |
-          test -s release/PairCue-macOS-arm64.zip
-          test -s release/PairCue-macOS-x64.zip
-          test -s release/PairCue-windows-x64.zip
-          test -s release/PairCue-linux-x64.tar.gz
-          test "$(find release -maxdepth 1 -type f -name 'PairCue-*' | wc -l)" -eq 4
+          test -s release/SubDuet-macOS-arm64.zip
+          test -s release/SubDuet-macOS-x64.zip
+          test -s release/SubDuet-windows-x64.zip
+          test -s release/SubDuet-linux-x64.tar.gz
+          test "$(find release -maxdepth 1 -type f -name 'SubDuet-*' | wc -l)" -eq 4
       - name: Create SHA-256 checksums
         working-directory: release
-        run: sha256sum PairCue-* > SHA256SUMS.txt
+        run: sha256sum SubDuet-* > SHA256SUMS.txt
       - name: Create or update GitHub release
         env:
           GH_TOKEN: ${{ github.token }}

@@ -1,4 +1,4 @@
-name: Report a first PairCue result
+name: Report a first SubDuet result
 description: Tell us whether the private beta worked, without sharing media or subtitle content.
 title: "[Beta result]: "
 labels: ["beta feedback"]
@@ -6,7 +6,7 @@ body:
   - type: markdown
     attributes:
       value: |
-        Thank you for trying PairCue. This form is voluntary and nothing was sent automatically. Never paste API keys, server tokens, private paths, media titles, or subtitle text.
+        Thank you for trying SubDuet. This form is voluntary and nothing was sent automatically. Never paste API keys, server tokens, private paths, media titles, or subtitle text.
   - type: dropdown
     id: route
     attributes:

@@ -28,10 +28,10 @@ def test_desktop_platform_labels_are_release_friendly(monkeypatch: pytest.Monkey
 def test_runtime_license_collector_includes_every_component_and_python(tmp_path: Path) -> None:
     output = tmp_path / "licenses"
 
-    manifest = collect(output, "paircue")
+    manifest = collect(output, "subduet")
 
     names = {str(component["name"]) for component in manifest}
-    assert {"paircue", "Python"} <= names
+    assert {"subduet", "Python"} <= names
     assert (output / "MANIFEST.json").is_file()
     for component in manifest:
         assert component["files"]

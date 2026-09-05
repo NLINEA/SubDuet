@@ -98,7 +98,7 @@ function configLine(name, raw) {
 function buildConfig(maskSecrets = false) {
   const mode = selectedMode();
   const platform = selectedPlatform();
-  const lines = ["# Generated locally by PairCue Setup. Keep this file private."];
+  const lines = ["# Generated locally by SubDuet Setup. Keep this file private."];
   if (mode === "library") {
     const hostMediaPath = value("host-media-path").replace(/\/+$/, "") || "/";
     const torrentPath = hostMediaPath === "/" ? "/Torrents" : `${hostMediaPath}/Torrents`;
@@ -433,14 +433,14 @@ function updateNextStep() {
     if (desktopApp) {
       byId("next-heading").textContent = "Your dashboard opens next";
       byId("next-copy").textContent =
-        "PairCue stays running on this device, scans the library, and shows every result visually.";
+        "SubDuet stays running on this device, scans the library, and shows every result visually.";
       byId("next-command").textContent = "No Docker or terminal command required.";
     } else {
       byId("next-heading").textContent = "Start the library service";
       byId("next-copy").textContent = "Put paircue.env beside docker-compose.yml, then run:";
       byId("next-command").textContent = [
         "docker compose --env-file paircue.env build core",
-        "docker compose --env-file paircue.env run --rm core paircue doctor",
+        "docker compose --env-file paircue.env run --rm core subduet doctor",
         "docker compose --env-file paircue.env up -d core",
       ].join("\n");
     }
@@ -448,8 +448,8 @@ function updateNextStep() {
   }
   byId("next-heading").textContent = "Try one video";
   byId("next-copy").textContent =
-    "After saving, PairCue opens your system file chooser. Pick one video and it starts for you.";
-  byId("next-command").textContent = "Later: paircue learn --config paircue.env";
+    "After saving, SubDuet opens your system file chooser. Pick one video and it starts for you.";
+  byId("next-command").textContent = "Later: subduet learn --config paircue.env";
 }
 
 function configForAction() {
@@ -520,7 +520,7 @@ async function saveConfig() {
       });
       const testPayload = await testResponse.json();
       if (!testResponse.ok || !testPayload.ok) {
-        throw new Error(testPayload.message || "PairCue could not verify this platform.");
+        throw new Error(testPayload.message || "SubDuet could not verify this platform.");
       }
       actionStatus.textContent = testPayload.message;
     }
@@ -532,7 +532,7 @@ async function saveConfig() {
     });
     const payload = await response.json();
     if (!response.ok || !payload.saved) {
-      throw new Error(payload.message || "PairCue could not save the setup.");
+      throw new Error(payload.message || "SubDuet could not save the setup.");
     }
     button.textContent = "Saved";
     actionStatus.textContent = payload.backup
@@ -542,7 +542,7 @@ async function saveConfig() {
       actionStatus.textContent = `Saved ${payload.filename}. Look for the video file window.`;
       pollProgress();
     } else if (desktopApp) {
-      actionStatus.textContent = "Saved. PairCue is opening your private dashboard…";
+      actionStatus.textContent = "Saved. SubDuet is opening your private dashboard…";
       pollProgress();
     }
   } catch (error) {
@@ -576,14 +576,14 @@ function renderProgress(payload) {
   }
   if (payload.phase === "processing" || payload.phase === "starting" || payload.phase === "saved") {
     number.textContent = "•••";
-    heading.textContent = "PairCue is working";
+    heading.textContent = "SubDuet is working";
     copy.textContent = payload.message;
     return;
   }
   if (payload.phase === "completed") {
     number.textContent = "DONE";
     if (payload.action_url) {
-      heading.textContent = "Your PairCue dashboard is ready";
+      heading.textContent = "Your SubDuet dashboard is ready";
       copy.textContent = payload.message;
       link.href = payload.action_url;
       link.hidden = false;
@@ -603,7 +603,7 @@ function renderProgress(payload) {
   }
   if (payload.phase === "failed") {
     number.textContent = "CHECK";
-    heading.textContent = "PairCue needs one more thing";
+    heading.textContent = "SubDuet needs one more thing";
     copy.textContent = payload.message;
   }
 }
@@ -625,9 +625,9 @@ async function pollProgress() {
     } catch {
       byId("next-step").dataset.phase = "failed";
       byId("next-number").textContent = "CHECK";
-      byId("next-heading").textContent = "PairCue stopped reporting progress";
+      byId("next-heading").textContent = "SubDuet stopped reporting progress";
       byId("next-copy").textContent =
-        "Your setup is saved. Reopen PairCue to check the video or try again.";
+        "Your setup is saved. Reopen SubDuet to check the video or try again.";
       return;
     }
     await new Promise((resolve) => window.setTimeout(resolve, 650));
@@ -637,7 +637,7 @@ async function pollProgress() {
 async function updateSystemReadiness() {
   const status = byId("system-check");
   if (!window.location.protocol.startsWith("http")) {
-    status.textContent = "PairCue checks the video tools when this page is opened from the app.";
+    status.textContent = "SubDuet checks the video tools when this page is opened from the app.";
     return;
   }
   try {
@@ -655,7 +655,7 @@ async function updateSystemReadiness() {
     status.textContent =
       "Optional video tools are missing. Search, translation, and two SRT tracks still work; embedded subtitles, timing alignment, and speech generation need FFmpeg.";
   } catch {
-    status.textContent = "PairCue could not check the video tools. Setup can still continue.";
+    status.textContent = "SubDuet could not check the video tools. Setup can still continue.";
   }
 }
 
@@ -692,7 +692,7 @@ async function chooseMediaFolder() {
     });
     const payload = await response.json();
     if (!response.ok) {
-      throw new Error("PairCue could not open the folder chooser.");
+      throw new Error("SubDuet could not open the folder chooser.");
     }
     if (payload.selected && payload.path) {
       byId("host-media-path").value = payload.path;
@@ -727,14 +727,14 @@ async function quickPairSubtitles() {
     );
     const payload = await response.json();
     if (!response.ok) {
-      throw new Error(payload.message || "PairCue could not pair those subtitles.");
+      throw new Error(payload.message || "SubDuet could not pair those subtitles.");
     }
     if (!payload.completed) {
       status.textContent = payload.message;
       return;
     }
     completed = true;
-    status.textContent = `${payload.message} ${payload.filename} is highlighted in your file manager. Keep it beside the video; if ${selectedPlatformName()} does not see it, match the video's base name while keeping .mul.srt. Reopen PairCue to pair another.`;
+    status.textContent = `${payload.message} ${payload.filename} is highlighted in your file manager. Keep it beside the video; if ${selectedPlatformName()} does not see it, match the video's base name while keeping .mul.srt. Reopen SubDuet to pair another.`;
     feedback.hidden = false;
     button.textContent = "Pairing complete";
   } catch (error) {
@@ -766,10 +766,10 @@ async function quickPairDemo() {
     });
     const payload = await response.json();
     if (!response.ok || !payload.completed) {
-      throw new Error(payload.message || "PairCue could not create the safe demo.");
+      throw new Error(payload.message || "SubDuet could not create the safe demo.");
     }
     button.textContent = "Demo complete";
-    status.textContent = `${payload.message} ${payload.filename} is highlighted in your file manager. It uses only short dialogue written for PairCue.`;
+    status.textContent = `${payload.message} ${payload.filename} is highlighted in your file manager. It uses only short dialogue written for SubDuet.`;
     feedback.hidden = false;
   } catch (error) {
     button.disabled = false;

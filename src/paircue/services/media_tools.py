@@ -141,7 +141,7 @@ class EmbeddedSubtitleExtractor:
 class SubtitleSynchronizer:
     """Synchronize SRT cues against media audio without a third-party sync engine.
 
-    FFmpeg is used only to decode the user's media into temporary PCM audio. PairCue's
+    FFmpeg is used only to decode the user's media into temporary PCM audio. SubDuet's
     own activity detection, cross-correlation, confidence gate, and cue shifting live
     in this class and the helpers below.
     """

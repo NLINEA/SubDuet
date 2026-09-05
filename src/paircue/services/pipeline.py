@@ -175,7 +175,7 @@ class SubtitlePipeline:
                 )
             raise RuntimeError(
                 f"no {self.target_language} subtitle was found. Add both language SRT files "
-                "beside the video, or reopen PairCue Setup and enable translation"
+                "beside the video, or reopen SubDuet Setup and enable translation"
             )
 
         source_was_generated = False
@@ -189,7 +189,7 @@ class SubtitlePipeline:
             source_was_generated = source_path is not None
         if source_path is None:
             raise RuntimeError(
-                f"no {self.source_language} subtitle was found. Reopen PairCue Setup and add "
+                f"no {self.source_language} subtitle was found. Reopen SubDuet Setup and add "
                 "subtitle search or speech generation, or place a source SRT beside the video"
             )
         if target is not None and not merge_attempted:

@@ -1,14 +1,17 @@
-# PairCue configuration
+# SubDuet configuration
 
-PairCue's desktop setup asks for a platform and a result first, then reveals only the settings that
+SubDuet was previously PairCue. Existing `paircue.env` files and `PAIRCUE_` variable names are
+intentionally unchanged; [upgrade details](RENAMING.md) explain the compatibility choices.
+
+SubDuet's desktop setup asks for a platform and a result first, then reveals only the settings that
 result needs. This reference is for advanced setup, command-line use, and `paircue.env` files.
 
 Start with a single video or the project-owned safe demo before automating a full library. Run
-`paircue doctor` to check a saved setup without printing secrets.
+`subduet doctor` to check a saved setup without printing secrets.
 
 ## Pick one media source
 
-PairCue processes one media server or filesystem root per installation.
+SubDuet processes one media server or filesystem root per installation.
 
 Plex:
 
@@ -36,11 +39,11 @@ PAIRCUE_PLATFORM=filesystem
 ```
 
 `PAIRCUE_SERVER_PATH_PREFIX` is the library path reported by the server. `MEDIA_PATH` is that same
-library on the Docker host; Docker mounts it as `PAIRCUE_MEDIA_ROOT=/media` inside PairCue. Existing
+library on the Docker host; Docker mounts it as `PAIRCUE_MEDIA_ROOT=/media` inside SubDuet. Existing
 `PAIRCUE_PLEX_*` variables remain accepted for backward compatibility.
 
-The selected folder must be readable and writable by PairCue so it can save the SRT beside each
-video. Stop PairCue before disconnecting a network drive.
+The selected folder must be readable and writable by SubDuet so it can save the SRT beside each
+video. Stop SubDuet before disconnecting a network drive.
 
 ## Languages and line order
 
@@ -64,12 +67,12 @@ PAIRCUE_TARGET_LANGUAGE_NAME=Traditional Chinese (Hong Kong)
 PAIRCUE_TARGET_LANGUAGE_STYLE=natural Hong Kong wording suitable for subtitles
 ```
 
-When AI translation is disabled, PairCue can search for the target language instead. Chinese
+When AI translation is disabled, SubDuet can search for the target language instead. Chinese
 targets can also use a safe OpenCC script conversion when applicable.
 
 ## Translation provider
 
-PairCue works with OpenAI-compatible translation endpoints:
+SubDuet works with OpenAI-compatible translation endpoints:
 
 ```dotenv
 PAIRCUE_TRANSLATION_BASE_URL=https://your-provider.example/v1
@@ -85,20 +88,20 @@ The final quality check is a second request through the same configured provider
 source text, draft translation, language/style settings, title or episode context, and glossary. It
 does not receive video, audio, local paths, media-server credentials, API keys in the request body,
 or other local data. It checks meaning, omissions, natural wording, and glossary consistency; then
-PairCue independently validates exact cue coverage again. Timing remains local and cannot be
+SubDuet independently validates exact cue coverage again. Timing remains local and cannot be
 changed by the model.
 
-Translation is fail-closed: PairCue publishes no translated or bilingual result if either pass is
+Translation is fail-closed: SubDuet publishes no translated or bilingual result if either pass is
 missing a cue, adds an unexpected cue, returns empty text, exceeds size limits, or fails.
 
 Remote AI endpoints must use HTTPS and an API key. A loopback endpoint such as
 `http://127.0.0.1:11434/v1` or `http://localhost:9000/v1` can run without a key, allowing a local
-OpenAI-compatible model to keep subtitle text on the device. PairCue does not use unofficial OAuth
+OpenAI-compatible model to keep subtitle text on the device. SubDuet does not use unofficial OAuth
 or borrow a consumer AI-account login.
 
 ## Subtitle search and download
 
-PairCue contains an independently written adapter for the documented OpenSubtitles.com REST API.
+SubDuet contains an independently written adapter for the documented OpenSubtitles.com REST API.
 It calculates the OpenSubtitles file hash, tries an exact release match, then falls back to title,
 year, season, and episode metadata.
 
@@ -115,7 +118,7 @@ terms, and permission to use downloaded subtitle content remain the user's respo
 
 ## Generate subtitles from speech
 
-If no source subtitle exists, PairCue can extract the first audio track into bounded FLAC chunks
+If no source subtitle exists, SubDuet can extract the first audio track into bounded FLAC chunks
 and call an OpenAI-compatible transcription endpoint. Every returned segment and timestamp is
 validated before the source SRT is published.
 
@@ -132,16 +135,16 @@ sends extracted audio to the configured endpoint when enabled. FFmpeg is require
 Remote endpoints require HTTPS and an API key; loopback endpoints may use HTTP without a key.
 
 With **Do everything automatically** selected in visual setup, this stage becomes the final
-fallback after existing and downloaded source subtitles. PairCue does not upload audio when it has
+fallback after existing and downloaded source subtitles. SubDuet does not upload audio when it has
 already found a usable source track.
 
 ## Pair two existing subtitle languages
 
-When both sidecars exist, such as `Movie.ja.srt` and `Movie.en.srt`, PairCue matches cues by time and
+When both sidecars exist, such as `Movie.ja.srt` and `Movie.en.srt`, SubDuet matches cues by time and
 creates `Movie.mul.srt` without translation. One cue can safely align with two shorter cues in the
 other track.
 
-The default minimum is 70% timing coverage in both tracks. PairCue refuses to publish below that
+The default minimum is 70% timing coverage in both tracks. SubDuet refuses to publish below that
 confidence. Advanced thresholds are configurable:
 
 ```dotenv
@@ -151,9 +154,9 @@ PAIRCUE_BILINGUAL_MERGE_MIN_MATCH_RATIO=0.7
 
 ## Automatic synchronization
 
-Synchronization is enabled by default. PairCue uses a user-installed FFmpeg to decode temporary
+Synchronization is enabled by default. SubDuet uses a user-installed FFmpeg to decode temporary
 mono audio, then its own activity detector and FFT cross-correlation to estimate subtitle offset.
-Existing SRT files are copied to a temporary working directory first. PairCue keeps the originals
+Existing SRT files are copied to a temporary working directory first. SubDuet keeps the originals
 untouched and keeps the working timing unchanged if confidence is too low.
 
 ```dotenv

@@ -45,7 +45,7 @@ class MediaBrowserClient(MediaSource):
         self.server_path_prefix = server_path_prefix
         self.media_root = media_root
         authorization = (
-            'MediaBrowser Client="PairCue", Device="Server", DeviceId="paircue", '
+            'MediaBrowser Client="SubDuet", Device="Server", DeviceId="paircue", '
             f'Version="{__version__}", Token="{token}"'
         )
         self._client = httpx.Client(

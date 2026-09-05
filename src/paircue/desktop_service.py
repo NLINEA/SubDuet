@@ -34,7 +34,7 @@ class DesktopService:
 
     def start(self, timeout: float = 15) -> None:
         if self._thread is not None:
-            raise DesktopServiceError("the PairCue dashboard is already running")
+            raise DesktopServiceError("the SubDuet dashboard is already running")
         runtime = build_runtime(self.settings)
         app = create_core_app(self.settings, runtime, desktop_control=self)
         configuration = uvicorn.Config(
@@ -62,7 +62,7 @@ class DesktopService:
         self._server.should_exit = True
         self._thread.join(timeout=5)
         reason = type(self._failure).__name__ if self._failure is not None else "startup timeout"
-        raise DesktopServiceError(f"the PairCue dashboard could not start ({reason})")
+        raise DesktopServiceError(f"the SubDuet dashboard could not start ({reason})")
 
     def request(self, action: Literal["stop", "edit"]) -> None:
         with self._action_lock:
@@ -72,11 +72,11 @@ class DesktopService:
 
     def wait(self) -> Literal["stop", "edit"]:
         if self._thread is None:
-            raise DesktopServiceError("the PairCue dashboard has not started")
+            raise DesktopServiceError("the SubDuet dashboard has not started")
         self._thread.join()
         if self._failure is not None:
             raise DesktopServiceError(
-                f"the PairCue dashboard stopped unexpectedly ({type(self._failure).__name__})"
+                f"the SubDuet dashboard stopped unexpectedly ({type(self._failure).__name__})"
             )
         with self._action_lock:
             return self._action
@@ -84,7 +84,7 @@ class DesktopService:
     def _serve(self) -> None:
         try:
             if self._server is None:
-                raise DesktopServiceError("the PairCue dashboard server is unavailable")
+                raise DesktopServiceError("the SubDuet dashboard server is unavailable")
             self._server.run()
         except BaseException as exc:  # Uvicorn raises SystemExit when its port cannot be bound.
             self._failure = exc

@@ -3,6 +3,9 @@
 !.env.example
 paircue.env*
 !paircue.env.example
+subduet.env*
+!subduet.env.example
+.subduet-state/
 .paircue-state/
 # Keep any pre-rename local credentials out of Git.
 subflow.env
@@ -27,3 +30,5 @@ __pycache__/
 *.py[cod]
 .venv/
 state/
+output/
+.playwright-cli/

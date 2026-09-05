@@ -97,7 +97,7 @@ def create_core_app(
 
     docs_url = "/docs" if settings.api_docs_enabled else None
     app = FastAPI(
-        title="PairCue API",
+        title="SubDuet API",
         version=__version__,
         debug=False,
         docs_url=docs_url,
@@ -167,12 +167,12 @@ def create_core_app(
         @protected.post("/desktop/stop", response_model=QueuedResponse)
         async def desktop_stop() -> QueuedResponse:
             desktop_control.request("stop")
-            return QueuedResponse(queued=False, message="PairCue is stopping")
+            return QueuedResponse(queued=False, message="SubDuet is stopping")
 
         @protected.post("/desktop/edit", response_model=QueuedResponse)
         async def desktop_edit() -> QueuedResponse:
             desktop_control.request("edit")
-            return QueuedResponse(queued=False, message="PairCue is reopening setup")
+            return QueuedResponse(queued=False, message="SubDuet is reopening setup")
 
     @protected.post("/webhooks/plex", response_model=QueuedResponse)
     async def plex_webhook(request: Request) -> QueuedResponse:

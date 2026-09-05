@@ -3,8 +3,8 @@ requires = ["hatchling>=1.27,<2"]
 build-backend = "hatchling.build"
 
 [project]
-name = "paircue"
-version = "0.1.0b14"
+name = "subduet"
+version = "0.1.0b15"
 description = "Cross-platform aligned bilingual subtitles for language learning"
 readme = "README.md"
 requires-python = ">=3.11"
@@ -44,13 +44,13 @@ dependencies = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/NLINEA/PairCue"
-Repository = "https://github.com/NLINEA/PairCue"
-Issues = "https://github.com/NLINEA/PairCue/issues"
-Documentation = "https://github.com/NLINEA/PairCue/tree/main/docs"
-Discussions = "https://github.com/NLINEA/PairCue/discussions"
-Releases = "https://github.com/NLINEA/PairCue/releases"
-Changelog = "https://github.com/NLINEA/PairCue/blob/main/CHANGELOG.md"
+Homepage = "https://github.com/NLINEA/SubDuet"
+Repository = "https://github.com/NLINEA/SubDuet"
+Issues = "https://github.com/NLINEA/SubDuet/issues"
+Documentation = "https://github.com/NLINEA/SubDuet/tree/main/docs"
+Discussions = "https://github.com/NLINEA/SubDuet/discussions"
+Releases = "https://github.com/NLINEA/SubDuet/releases"
+Changelog = "https://github.com/NLINEA/SubDuet/blob/main/CHANGELOG.md"
 
 [project.optional-dependencies]
 dev = [
@@ -67,10 +67,11 @@ release = [
 ]
 
 [project.scripts]
+subduet = "paircue.cli:main"
 paircue = "paircue.cli:main"
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/paircue"]
+packages = ["src/paircue", "src/subduet"]
 
 [tool.pytest.ini_options]
 addopts = "-q --strict-markers"
@@ -92,7 +93,7 @@ ignore = ["S101"]
 [tool.mypy]
 python_version = "3.11"
 strict = true
-packages = ["paircue"]
+packages = ["paircue", "subduet"]
 
 [[tool.mypy.overrides]]
 module = ["opencc", "srt"]

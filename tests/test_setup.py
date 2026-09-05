@@ -52,8 +52,8 @@ def test_visual_setup_is_self_contained_and_only_calls_its_local_origin() -> Non
     assert not re.search(r"src=[\"']https?://", html)
     external_links = re.findall(r"href=[\"'](https?://[^\"']+)", html)
     assert external_links == [
-        "https://github.com/NLINEA/PairCue/issues/new?template=beta_report.yml",
-        "https://github.com/NLINEA/PairCue/issues/new?template=beta_report.yml",
+        "https://github.com/NLINEA/SubDuet/issues/new?template=beta_report.yml",
+        "https://github.com/NLINEA/SubDuet/issues/new?template=beta_report.yml",
     ]
     assert html.count('rel="noopener noreferrer"') == 2
 
@@ -67,8 +67,8 @@ def test_visual_setup_javascript_only_references_existing_elements() -> None:
     referenced_ids = set(re.findall(r'byId\("([A-Za-z0-9-]+)"\)', javascript))
 
     assert referenced_ids <= set(parser.ids)
-    assert "docker compose --env-file paircue.env run --rm core paircue doctor" in javascript
-    assert "paircue learn" in javascript
+    assert "docker compose --env-file paircue.env run --rm core subduet doctor" in javascript
+    assert "subduet learn" in javascript
     assert "docker compose --env-file paircue.env" in javascript
     assert "Your bilingual subtitle is ready" in javascript
     assert 'fetch("/context"' in javascript
@@ -98,7 +98,7 @@ def test_visual_setup_asks_for_platform_before_starting_mode() -> None:
         'aria-label="Starting point"'
     )
     assert html.index("Where will you watch?") < html.index(
-        "What should PairCue do first?"
+        "What should SubDuet do first?"
     )
     assert 'id="journey-stage" hidden' in html
     assert 'id="details-stage" hidden' in html

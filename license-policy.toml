@@ -1,4 +1,4 @@
-# Runtime dependency policy. The CI license job installs PairCue in a clean environment,
+# Runtime dependency policy. The CI license job installs SubDuet in a clean environment,
 # walks only the production dependency graph, and fails closed on unknown licenses.
 
 allowed_licenses = [

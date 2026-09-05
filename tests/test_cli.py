@@ -49,7 +49,7 @@ def test_version_command_reports_packaged_version(
         main(["--version"])
 
     assert exc_info.value.code == 0
-    assert capsys.readouterr().out.strip().startswith("paircue 0.1.0")
+    assert capsys.readouterr().out.strip().startswith("subduet 0.1.0")
 
 
 def test_pair_command_creates_bilingual_srt(
@@ -142,7 +142,7 @@ def test_desktop_safe_demo_creates_only_project_owned_dialogue(
 
     result = cli._quick_pair_demo("target-first", tmp_path)
 
-    assert result.output == tmp_path / "PairCue Demo.mul.srt"
+    assert result.output == tmp_path / "SubDuet Demo.mul.srt"
     assert result.source_match_ratio == 1
     assert result.target_match_ratio == 1
     assert result.output.read_text(encoding="utf-8") == (
@@ -205,7 +205,7 @@ def test_desktop_folder_picker_uses_the_available_native_dialog(
             "/usr/bin/zenity",
             "--file-selection",
             "--directory",
-            "--title=Choose your media folder for PairCue",
+            "--title=Choose your media folder for SubDuet",
         ]
     ]
 

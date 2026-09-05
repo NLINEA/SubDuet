@@ -58,7 +58,7 @@ class TranscriptionConfig:
 class OpenAICompatibleTranscriber:
     """Generate an SRT through the documented multipart transcription API.
 
-    Media segmentation and response validation are PairCue code. The configured service can be
+    Media segmentation and response validation are SubDuet code. The configured service can be
     OpenAI or a user-operated endpoint that implements the same transcription contract.
     """
 
@@ -194,7 +194,7 @@ class OpenAICompatibleTranscriber:
             data["prompt"] = self.config.prompt
         headers = {
             "Accept": "application/json",
-            "User-Agent": f"PairCue/{__version__}",
+            "User-Agent": f"SubDuet/{__version__}",
         }
         if self.config.api_key:
             headers["Authorization"] = f"Bearer {self.config.api_key}"

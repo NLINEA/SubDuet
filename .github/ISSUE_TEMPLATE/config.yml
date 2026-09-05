@@ -1,5 +1,5 @@
 blank_issues_enabled: false
 contact_links:
   - name: Report a security problem privately
-    url: https://github.com/NLINEA/PairCue/security/advisories/new
+    url: https://github.com/NLINEA/SubDuet/security/advisories/new
     about: Never publish a vulnerability or live credential in an issue.

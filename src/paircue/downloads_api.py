@@ -45,8 +45,8 @@ class TaskListResponse(BaseModel):
 
 DOWNLOADS_HTML = """<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width">
-<title>PairCue Downloads</title><link rel="stylesheet" href="/assets/downloads.css"></head>
-<body><main><h1>PairCue Downloads</h1>
+<title>SubDuet Downloads</title><link rel="stylesheet" href="/assets/downloads.css"></head>
+<body><main><h1>SubDuet Downloads</h1>
 <label>API token<input id="token" type="password" autocomplete="off"></label>
 <label>Magnet link<textarea id="magnet" rows="3"></textarea></label>
 <button id="add">Add magnet</button>
@@ -69,7 +69,7 @@ def create_downloads_app(
     client: DownloadStationClient,
 ) -> FastAPI:
     app = FastAPI(
-        title="PairCue Download Station",
+        title="SubDuet Download Station",
         version=__version__,
         debug=False,
         docs_url=None,

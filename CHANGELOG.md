@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.1.0b15 — 2026-09-05
+
+- Rename the product and repository to **SubDuet** — Two languages. One subtitle.
+- Update setup, dashboard, documentation, provider app names, and desktop download filenames.
+- Add the `subduet` command and `python -m subduet`; retain the `paircue` command and Python
+  imports for compatibility.
+- Preserve private configuration locations, `paircue.env`, `PAIRCUE_` settings, the macOS bundle
+  identifier, and Docker state so users do not need to re-enter or move credentials.
+- Extend credential-file exclusions and secret scanning to cover both product names.
+- This release changes branding and upgrade compatibility; subtitle processing behavior is unchanged.
+
+See [Upgrading from PairCue](docs/RENAMING.md).
+
 ## 0.1.0b14 - 2026-08-19
 
 - Add an optional-by-setting, enabled-by-default AI final quality pass for translated subtitles.

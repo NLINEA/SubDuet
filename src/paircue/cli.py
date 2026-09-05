@@ -44,7 +44,7 @@ MAX_QUICK_PAIR_SUBTITLE_BYTES = 16 * 1024 * 1024
 
 def _parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
-        prog="paircue", description="cross-platform bilingual subtitle automation"
+        prog="subduet", description="cross-platform bilingual subtitle automation"
     )
     parser.add_argument("--version", action="version", version=f"%(prog)s {__version__}")
     subcommands = parser.add_subparsers(dest="command")
@@ -53,7 +53,7 @@ def _parser() -> argparse.ArgumentParser:
     subcommands.add_parser("generate-token", help="generate a secure API token")
     setup = subcommands.add_parser("setup", help="open the private visual setup wizard")
     setup.add_argument("--no-open", action="store_true", help="print its local path instead")
-    doctor = subcommands.add_parser("doctor", help="check configuration before starting PairCue")
+    doctor = subcommands.add_parser("doctor", help="check configuration before starting SubDuet")
     doctor.add_argument("--json", action="store_true", help="print machine-readable results")
     doctor.add_argument("--config", type=Path, help="read settings from this environment file")
     learn = subcommands.add_parser(
@@ -183,7 +183,7 @@ def _doctor(*, as_json: bool, config: Path | None = None) -> int:
         if as_json:
             print(json.dumps({"ready": False, "configuration_errors": errors}))
         else:
-            print("PairCue is not ready:", file=sys.stderr)
+            print("SubDuet is not ready:", file=sys.stderr)
             for error in errors:
                 print(f"[error] {error['location']}: {error['message']}", file=sys.stderr)
         return 1
@@ -199,14 +199,14 @@ def _doctor(*, as_json: bool, config: Path | None = None) -> int:
     else:
         for check in checks:
             print(f"[{check.status}] {check.name}: {check.detail}")
-        print("PairCue is ready." if ready else "PairCue needs attention before it can start.")
+        print("SubDuet is ready." if ready else "SubDuet needs attention before it can start.")
     return 0 if ready else 1
 
 
 def _setup(*, no_open: bool) -> int:
     setup_page = Path(__file__).with_name("setup") / "index.html"
     if not setup_page.is_file():
-        print("PairCue setup files are missing from this installation.", file=sys.stderr)
+        print("SubDuet setup files are missing from this installation.", file=sys.stderr)
         return 1
     if no_open:
         print(setup_page)
@@ -224,7 +224,7 @@ def _setup(*, no_open: bool) -> int:
                 "cancelled",
                 "No video was selected. Your setup is saved, so you can try again anytime.",
             )
-            print("No video selected. Your setup is saved; run `paircue learn` whenever ready.")
+            print("No video selected. Your setup is saved; run `subduet learn` whenever ready.")
             return
         state.update_progress(
             "processing",
@@ -300,7 +300,7 @@ def _setup(*, no_open: bool) -> int:
         try:
             action = desktop_service.wait()
         except DesktopServiceError as exc:
-            print(f"PairCue dashboard stopped: {_safe_error(exc)}", file=sys.stderr)
+            print(f"SubDuet dashboard stopped: {_safe_error(exc)}", file=sys.stderr)
             return 1
         if action == "edit":
             return _setup(no_open=False)
@@ -315,7 +315,7 @@ def _run_desktop_library(config: Path, *, reopen_setup: bool) -> int:
         service.start()
     except (OSError, ValidationError, ValueError, httpx.HTTPError, DesktopServiceError) as exc:
         print(
-            f"PairCue could not start the library dashboard: {_desktop_start_message(exc)}",
+            f"SubDuet could not start the library dashboard: {_desktop_start_message(exc)}",
             file=sys.stderr,
         )
         return _setup(no_open=False) if reopen_setup else 1
@@ -323,7 +323,7 @@ def _run_desktop_library(config: Path, *, reopen_setup: bool) -> int:
     try:
         action = service.wait()
     except DesktopServiceError as exc:
-        print(f"PairCue dashboard stopped: {_safe_error(exc)}", file=sys.stderr)
+        print(f"SubDuet dashboard stopped: {_safe_error(exc)}", file=sys.stderr)
         return 1
     if action == "edit" and reopen_setup:
         return _setup(no_open=False)
@@ -334,13 +334,13 @@ def _desktop_start_message(error: Exception) -> str:
     if isinstance(error, httpx.HTTPStatusError):
         if error.response.status_code in {401, 403}:
             return "The server did not accept that token or API key. Check it and try again."
-        return "The media server returned an error. Check its address and PairCue access."
+        return "The media server returned an error. Check its address and SubDuet access."
     if isinstance(error, (httpx.ConnectError, httpx.TimeoutException)):
-        return "PairCue could not reach the media server. Check the address and network."
+        return "SubDuet could not reach the media server. Check the address and network."
     if isinstance(error, FileNotFoundError):
-        return "PairCue could not find the selected media folder. Choose it again."
+        return "SubDuet could not find the selected media folder. Choose it again."
     if isinstance(error, PermissionError):
-        return "PairCue does not have permission to read and write the selected media folder."
+        return "SubDuet does not have permission to read and write the selected media folder."
     if isinstance(error, ValidationError):
         return f"Check the required platform settings: {_safe_error(error)}"
     return _safe_error(error)
@@ -366,7 +366,7 @@ def _pair(args: argparse.Namespace) -> int:
         )
         write_srt(output, merged.subtitles)
     except (OSError, ValueError) as exc:
-        print(f"PairCue could not pair these subtitles: {exc}", file=sys.stderr)
+        print(f"SubDuet could not pair these subtitles: {exc}", file=sys.stderr)
         return 2
     print(
         f"Created {output} with {len(merged.subtitles)} bilingual cues "
@@ -389,7 +389,7 @@ def _learn(args: argparse.Namespace) -> int:
         if not title:
             raise ValueError("title must not be empty")
     except (OSError, ValueError) as exc:
-        message = f"PairCue could not open this video: {exc}"
+        message = f"SubDuet could not open this video: {exc}"
         _update_guided_progress(args, "failed", message)
         print(message, file=sys.stderr)
         return 2
@@ -418,7 +418,7 @@ def _learn(args: argparse.Namespace) -> int:
             )
             pipeline = build_pipeline(settings)
         except (OSError, ValidationError, ValueError) as exc:
-            message = f"PairCue configuration is not ready: {_safe_error(exc)}"
+            message = f"SubDuet configuration is not ready: {_safe_error(exc)}"
             _update_guided_progress(args, "failed", message)
             print(message, file=sys.stderr)
             return 2
@@ -455,8 +455,8 @@ def _learn(args: argparse.Namespace) -> int:
         _update_guided_progress(
             args,
             "failed",
-            "PairCue found only one language track. Add the other language or enable translation, "
-            "then reopen PairCue.",
+            "SubDuet found only one language track. Add the other language or enable translation, "
+            "then reopen SubDuet.",
             result.outputs,
         )
         return 1
@@ -495,7 +495,7 @@ def _environment_file(config: Path | None) -> Path:
 
 
 def _default_setup_output() -> Path:
-    """Use the working folder for CLI installs and the user config folder for desktop builds."""
+    """Keep the original private config path so a rename never strands existing credentials."""
 
     if not _is_frozen():
         return Path.cwd() / "paircue.env"
@@ -540,7 +540,7 @@ def _desktop_library_settings_from_values(
     if not media_root.is_dir():
         raise ValueError("the selected media location is not a folder")
     if not os.access(media_root, os.R_OK | os.W_OK):
-        raise ValueError("PairCue needs read and write access to the selected media folder")
+        raise ValueError("SubDuet needs read and write access to the selected media folder")
     settings_values: dict[str, object] = {
         name.removeprefix("PAIRCUE_").casefold(): value
         for name, value in values.items()
@@ -572,7 +572,7 @@ def _choose_media_path() -> Path | None:
             [
                 "/usr/bin/osascript",
                 "-e",
-                'POSIX path of (choose file with prompt "Choose one movie or episode for PairCue")',
+                'POSIX path of (choose file with prompt "Choose one movie or episode for SubDuet")',
             ]
         )
     elif os.name == "nt":
@@ -585,7 +585,7 @@ def _choose_media_path() -> Path | None:
                     "-Command",
                     "Add-Type -AssemblyName System.Windows.Forms; "
                     "$d=New-Object System.Windows.Forms.OpenFileDialog; "
-                    "$d.Title='Choose one movie or episode for PairCue'; "
+                    "$d.Title='Choose one movie or episode for SubDuet'; "
                     "$d.Filter='Video files|*.mkv;*.mp4;*.m4v;*.avi;*.mov;*.webm|All files|*.*'; "
                     "if($d.ShowDialog() -eq 'OK'){Write-Output $d.FileName}",
                 ]
@@ -597,7 +597,7 @@ def _choose_media_path() -> Path | None:
                 [
                     zenity,
                     "--file-selection",
-                    "--title=Choose one movie or episode for PairCue",
+                    "--title=Choose one movie or episode for SubDuet",
                     "--file-filter=Video files | *.mkv *.mp4 *.m4v *.avi *.mov *.webm",
                     "--file-filter=All files | *",
                 ]
@@ -611,7 +611,7 @@ def _choose_media_path() -> Path | None:
                     "",
                     "Video files (*.mkv *.mp4 *.m4v *.avi *.mov *.webm)",
                     "--title",
-                    "Choose one movie or episode for PairCue",
+                    "Choose one movie or episode for SubDuet",
                 ]
             )
 
@@ -645,7 +645,7 @@ def _choose_media_directory() -> Path | None:
         command = [
             "/usr/bin/osascript",
             "-e",
-            'POSIX path of (choose folder with prompt "Choose your media folder for PairCue")',
+            'POSIX path of (choose folder with prompt "Choose your media folder for SubDuet")',
         ]
     elif os.name == "nt":
         powershell = shutil.which("powershell") or shutil.which("pwsh")
@@ -656,7 +656,7 @@ def _choose_media_directory() -> Path | None:
                 "-Command",
                 "Add-Type -AssemblyName System.Windows.Forms; "
                 "$d=New-Object System.Windows.Forms.FolderBrowserDialog; "
-                "$d.Description='Choose your media folder for PairCue'; "
+                "$d.Description='Choose your media folder for SubDuet'; "
                 "if($d.ShowDialog() -eq 'OK'){Write-Output $d.SelectedPath}",
             ]
     else:
@@ -667,7 +667,7 @@ def _choose_media_directory() -> Path | None:
                 zenity,
                 "--file-selection",
                 "--directory",
-                "--title=Choose your media folder for PairCue",
+                "--title=Choose your media folder for SubDuet",
             ]
         elif kdialog:
             command = [
@@ -675,7 +675,7 @@ def _choose_media_directory() -> Path | None:
                 "--getexistingdirectory",
                 "",
                 "--title",
-                "Choose your media folder for PairCue",
+                "Choose your media folder for SubDuet",
             ]
     if command is None:
         return None
@@ -696,9 +696,9 @@ def _choose_subtitle_path(role: Literal["source", "target"]) -> Path | None:
     """Open a native SRT chooser with role-specific wording."""
 
     title = (
-        "Choose the spoken or source subtitle for PairCue"
+        "Choose the spoken or source subtitle for SubDuet"
         if role == "source"
-        else "Choose the learning-language subtitle for PairCue"
+        else "Choose the learning-language subtitle for SubDuet"
     )
     command: list[str] | None = None
     if sys.platform == "darwin" and Path("/usr/bin/osascript").is_file():
@@ -787,7 +787,7 @@ def _quick_pair_subtitles(order: str) -> QuickPairResult | None:
         raise SetupQuickPairError("One subtitle is not a valid UTF-8 SRT file.") from exc
     except OSError as exc:
         raise SetupQuickPairError(
-            "PairCue could not read or write those subtitle files. Check their permissions."
+            "SubDuet could not read or write those subtitle files. Check their permissions."
         ) from exc
     except ValueError as exc:
         raise SetupQuickPairError(str(exc)) from None
@@ -845,8 +845,8 @@ def _quick_pair_demo(
         order=cast(Literal["target-first", "source-first"], order),
     )
     output, reservation_inode = _reserve_quick_pair_output(
-        destination / "PairCue Demo.en.srt",
-        destination / "PairCue Demo.es.srt",
+        destination / "SubDuet Demo.en.srt",
+        destination / "SubDuet Demo.es.srt",
     )
     try:
         write_srt(output, merged.subtitles)

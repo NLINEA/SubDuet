@@ -1,6 +1,6 @@
-# PairCue community standards
+# SubDuet community standards
 
-PairCue welcomes people who want to make private media libraries more useful for language learning.
+SubDuet welcomes people who want to make private media libraries more useful for language learning.
 Participation should remain safe, practical, and respectful.
 
 ## Expected
@@ -28,5 +28,5 @@ and should be explained when doing so would not expose private information or cr
 For ordinary concerns, contact the maintainers through a GitHub Discussion. For sensitive abuse,
 use GitHub's private reporting or platform report tools rather than posting details publicly.
 
-These standards apply in PairCue repositories, discussions, issues, pull requests, and project-led
+These standards apply in SubDuet repositories, discussions, issues, pull requests, and project-led
 community spaces.

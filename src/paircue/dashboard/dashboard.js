@@ -14,7 +14,7 @@ async function request(path, options = {}) {
     headers: { ...authorization(), ...(options.headers || {}) },
   });
   if (!response.ok) {
-    throw new Error(response.status === 401 ? "That dashboard token is not valid." : "PairCue could not answer.");
+    throw new Error(response.status === 401 ? "That dashboard token is not valid." : "SubDuet could not answer.");
   }
   return response.json();
 }
@@ -62,7 +62,7 @@ function renderStatus(payload) {
   if (scanFailed) {
     setRunning("error", "Library needs attention");
   } else {
-    setRunning("running", payload.pending ? "PairCue is working" : "PairCue is running");
+    setRunning("running", payload.pending ? "SubDuet is working" : "SubDuet is running");
   }
 }
 

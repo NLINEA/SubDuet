@@ -1,9 +1,10 @@
-# PairCue documentation
+# SubDuet documentation
 
 Pick the shortest guide that matches what you want to do.
 
 ## I am new
 
+- [Upgrading from PairCue](RENAMING.md) — the new name, with your existing settings preserved.
 - [10-minute beta mission](BETA_TEST.md) — download, run the owned demo, then try your files.
 - [Troubleshooting](TROUBLESHOOTING.md) — app warnings, missing results, FFmpeg, providers, and
   player visibility.
@@ -24,6 +25,6 @@ Pick the shortest guide that matches what you want to do.
 - [Contributing](../CONTRIBUTING.md) — development setup, checks, and provenance rules.
 - [Dependency policy](../DEPENDENCY_POLICY.md) and [third-party notices](../THIRD_PARTY_NOTICES.md).
 
-For usage questions, use [GitHub Discussions](https://github.com/NLINEA/PairCue/discussions).
+For usage questions, use [GitHub Discussions](https://github.com/NLINEA/SubDuet/discussions).
 For reproducible bugs, use the guided
-[bug form](https://github.com/NLINEA/PairCue/issues/new?template=bug_report.yml).
+[bug form](https://github.com/NLINEA/SubDuet/issues/new?template=bug_report.yml).

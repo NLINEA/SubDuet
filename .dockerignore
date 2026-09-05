@@ -4,6 +4,8 @@
 .env
 paircue.env
 paircue.env.backup-*
+subduet.env
+subduet.env.*
 # Keep any pre-rename local credentials out of the image context.
 subflow.env
 downloads.env
@@ -16,3 +18,7 @@ __pycache__
 htmlcov
 dist
 tests
+release
+build
+output
+.playwright-cli

@@ -6,7 +6,7 @@ body:
   - type: markdown
     attributes:
       value: |
-        Thanks for helping PairCue improve. Never paste API keys, server tokens, private library paths, or copyrighted subtitles here.
+        Thanks for helping SubDuet improve. Never paste API keys, server tokens, private library paths, or copyrighted subtitles here.
   - type: dropdown
     id: platform
     attributes:
@@ -23,7 +23,7 @@ body:
   - type: dropdown
     id: computer
     attributes:
-      label: Computer running PairCue
+      label: Computer running SubDuet
       options:
         - macOS Apple silicon
         - macOS Intel
@@ -36,8 +36,8 @@ body:
   - type: input
     id: version
     attributes:
-      label: PairCue version
-      description: Find this in the downloaded archive name, release page, or `paircue --version`.
+      label: SubDuet version
+      description: Find this in the downloaded archive name, release page, or `subduet --version`.
       placeholder: 0.1.0b13
     validations:
       required: true

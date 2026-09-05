@@ -35,7 +35,7 @@ class PlexClient:
             headers={
                 "X-Plex-Token": token,
                 "X-Plex-Client-Identifier": "paircue",
-                "X-Plex-Product": "PairCue",
+                "X-Plex-Product": "SubDuet",
                 "X-Plex-Version": __version__,
                 "X-Plex-Pms-Api-Version": "1.0.0",
                 "Accept": "application/json",

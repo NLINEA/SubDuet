@@ -172,7 +172,7 @@ class OpenAICompatibleProvider:
             body["thinking"] = {"type": "disabled"}
         headers = {
             "Content-Type": "application/json",
-            "User-Agent": f"PairCue/{__version__}",
+            "User-Agent": f"SubDuet/{__version__}",
         }
         if self.config.api_key:
             headers["Authorization"] = f"Bearer {self.config.api_key}"

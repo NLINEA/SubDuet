@@ -228,7 +228,7 @@ class OpenSubtitlesDownloader:
 
     @property
     def _user_agent(self) -> str:
-        return f"PairCue v{__version__}"
+        return f"SubDuet v{__version__}"
 
     def _headers(self, token: str = "") -> dict[str, str]:
         headers = {

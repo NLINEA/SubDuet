@@ -78,7 +78,7 @@ def test_setup_server_serves_local_assets_and_saves_with_backup(tmp_path: Path) 
         thread.join(timeout=5)
 
     assert page.status_code == 200
-    assert "PairCue Setup" in page.text
+    assert "SubDuet Setup" in page.text
     assert page.headers["cache-control"] == "no-store"
     assert page.headers["x-frame-options"] == "DENY"
     assert "frame-ancestors 'none'" in page.headers["content-security-policy"]
@@ -275,7 +275,7 @@ def test_desktop_quick_pair_is_origin_protected_and_returns_only_the_output_name
 
 def test_desktop_safe_demo_uses_a_separate_origin_protected_action(tmp_path: Path) -> None:
     assets = Path(paircue.__file__).with_name("setup")
-    output = tmp_path / "PairCue Demo.mul.srt"
+    output = tmp_path / "SubDuet Demo.mul.srt"
     observed_orders: list[str] = []
 
     def demo_pair(order: str) -> QuickPairResult:
@@ -311,7 +311,7 @@ def test_desktop_safe_demo_uses_a_separate_origin_protected_action(tmp_path: Pat
     assert rejected.status_code == 403
     assert completed.json() == {
         "completed": True,
-        "filename": "PairCue Demo.mul.srt",
+        "filename": "SubDuet Demo.mul.srt",
         "message": "Created a bilingual subtitle (100%/100% matched).",
     }
     assert observed_orders == ["target-first"]

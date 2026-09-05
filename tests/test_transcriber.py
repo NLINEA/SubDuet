@@ -40,7 +40,7 @@ def test_transcription_request_uses_timestamped_multipart_contract(tmp_path: Pat
     def handler(request: httpx.Request) -> httpx.Response:
         assert request.url.path == "/v1/audio/transcriptions"
         assert request.headers["Authorization"] == "Bearer secret-key"
-        assert request.headers["User-Agent"].startswith("PairCue/")
+        assert request.headers["User-Agent"].startswith("SubDuet/")
         assert b'name="model"\r\n\r\nwhisper-1' in request.content
         assert b'name="language"\r\n\r\nja' in request.content
         assert b'name="timestamp_granularities[]"\r\n\r\nsegment' in request.content

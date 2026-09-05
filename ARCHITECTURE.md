@@ -1,6 +1,6 @@
-# PairCue architecture
+# SubDuet architecture
 
-PairCue is a media-server companion service, not a replacement for Plex, Jellyfin, Emby, Bazarr,
+SubDuet is a media-server companion service, not a replacement for Plex, Jellyfin, Emby, Bazarr,
 Sonarr, or Radarr.
 
 ## Requirements and assumptions
@@ -26,7 +26,7 @@ flowchart LR
     Pipeline --> Embedded["Embedded subtitle extractor"]
     Pipeline --> Provider["Official OpenSubtitles API adapter"]
     Pipeline --> Transcribe["Timestamped transcription fallback"]
-    Pipeline --> Sync["PairCue audio alignment"]
+    Pipeline --> Sync["SubDuet audio alignment"]
     Pipeline --> Merge["Confidence-scored time merger"]
     Pipeline --> Translate["Validated translator + fallback"]
     Pipeline --> Output["Preserved inputs + atomic new outputs"]
@@ -47,7 +47,7 @@ The subtitle service mounts `/media` and receives only the selected media-server
 credentials. The Download Station service mounts only `/torrents` and receives only Download
 Station credentials. They use different bearer tokens and ports.
 
-The setup wizard is packaged with PairCue and is served only on a random `127.0.0.1` port. Its
+The setup wizard is packaged with SubDuet and is served only on a random `127.0.0.1` port. Its
 one-time random URL token and same-origin check protect the configuration write. It loads no remote
 assets, performs no analytics, writes `paircue.env` with owner-only permissions, and backs up an
 existing regular file before replacement. The `learn` command reuses the same pipeline with
@@ -58,7 +58,7 @@ assets into a self-contained operating-system app. They store configuration in t
 application-data folder, contain the runtime license bundle and SBOM, and deliberately exclude
 FFmpeg, provider models, subtitles, and media.
 
-When desktop library mode is selected, PairCue first makes a bounded authenticated platform check,
+When desktop library mode is selected, SubDuet first makes a bounded authenticated platform check,
 then starts the same core runtime on `127.0.0.1`. The dashboard receives its bearer token in a URL
 fragment, removes that fragment from browser history before its first API request, keeps the token
 only in page memory, and returns filename-only results. Stopping or editing from the dashboard
@@ -98,8 +98,8 @@ media servers reserve it for hearing-impaired captions.
 - The first release uses one worker. This is intentionally slower than unrestricted parallelism but
   avoids duplicate translation costs and NAS I/O spikes.
 - SQLite is sufficient for one host and keeps installation simple. A distributed queue and database
-  should only be considered if PairCue later supports multiple workers.
-- Polling is enabled by default on every connector. Webhooks are optional and must supply PairCue's
+  should only be considered if SubDuet later supports multiple workers.
+- Polling is enabled by default on every connector. Webhooks are optional and must supply SubDuet's
   bearer token directly or through a trusted reverse proxy.
 - Download Station remains in the repository for convenience but runs as a separate process with a
   separate privilege boundary.

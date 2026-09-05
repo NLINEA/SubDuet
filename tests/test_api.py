@@ -144,8 +144,8 @@ def test_dashboard_context_and_desktop_controls_are_protected() -> None:
         "target_language": "en",
         "desktop": True,
     }
-    assert stopped.json()["message"] == "PairCue is stopping"
-    assert edited.json()["message"] == "PairCue is reopening setup"
+    assert stopped.json()["message"] == "SubDuet is stopping"
+    assert edited.json()["message"] == "SubDuet is reopening setup"
     assert control.actions == ["stop", "edit"]
 
 

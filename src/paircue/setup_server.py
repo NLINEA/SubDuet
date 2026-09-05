@@ -237,9 +237,9 @@ class SetupRequestHandler(BaseHTTPRequestHandler):
             except Exception as exc:
                 log.warning("desktop Quick Pair failed (%s)", type(exc).__name__)
                 message = (
-                    "PairCue could not create the safe demo. Check folder permissions."
+                    "SubDuet could not create the safe demo. Check folder permissions."
                     if parsed.path == "/demo-pair"
-                    else "PairCue could not pair those subtitle files."
+                    else "SubDuet could not pair those subtitle files."
                 )
                 self._json_response(
                     HTTPStatus.INTERNAL_SERVER_ERROR,
@@ -300,7 +300,7 @@ class SetupRequestHandler(BaseHTTPRequestHandler):
                 if self.server.state.saved.is_set():
                     self._json_response(
                         HTTPStatus.CONFLICT,
-                        {"saved": False, "message": "PairCue Setup was already saved."},
+                        {"saved": False, "message": "SubDuet Setup was already saved."},
                     )
                     return
                 output, backup = self._save_config(config)
@@ -331,7 +331,7 @@ class SetupRequestHandler(BaseHTTPRequestHandler):
             log.warning("visual setup could not save configuration (%s)", type(exc).__name__)
             self._json_response(
                 HTTPStatus.BAD_REQUEST,
-                {"saved": False, "message": "PairCue could not save this configuration."},
+                {"saved": False, "message": "SubDuet could not save this configuration."},
             )
             return
 
@@ -417,7 +417,7 @@ def run_setup_wizard(
     thread.start()
     url = f"{server.origin}/#token={server.token}"
     if webbrowser.open(url):
-        print("PairCue Setup opened. Finish the three short steps in your browser.")
+        print("SubDuet Setup opened. Finish the three short steps in your browser.")
     else:
         print(f"Open this private local address in a browser: {url}")
     print("Waiting for you to save the setup. Press Ctrl+C to cancel.")
@@ -435,12 +435,12 @@ def run_setup_wizard(
                 log.error("guided setup continuation failed (%s)", type(exc).__name__)
                 server.state.update_progress(
                     "failed",
-                    "PairCue could not finish setup. Check the settings and try again.",
+                    "SubDuet could not finish setup. Check the settings and try again.",
                 )
             if server.state.phase not in {"completed", "failed", "cancelled"}:
                 server.state.update_progress(
                     "failed",
-                    "PairCue stopped before finishing. Reopen PairCue to try again.",
+                    "SubDuet stopped before finishing. Reopen SubDuet to try again.",
                 )
             server.state.delivered.wait(timeout=30)
     except KeyboardInterrupt:

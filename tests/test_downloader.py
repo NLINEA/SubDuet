@@ -21,7 +21,7 @@ def test_official_api_searches_and_downloads_the_requested_language(tmp_path: Pa
     def handler(request: httpx.Request) -> httpx.Response:
         if request.url.path == "/api/v1/subtitles":
             assert request.headers["Api-Key"] == "api-key"
-            assert request.headers["User-Agent"].startswith("PairCue v")
+            assert request.headers["User-Agent"].startswith("SubDuet v")
             assert request.url.params["languages"] == "ja"
             assert request.url.params["query"] == "Movie"
             assert request.url.params["type"] == "movie"

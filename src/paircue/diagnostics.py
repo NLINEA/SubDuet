@@ -53,7 +53,7 @@ def run_diagnostics(settings: PairCueSettings) -> list[DiagnosticCheck]:
             DiagnosticCheck(
                 "Subtitle generation",
                 "ok",
-                f"{settings.transcription_model} via {host}; audio will leave PairCue",
+                f"{settings.transcription_model} via {host}; audio will leave SubDuet",
             )
         )
     else:

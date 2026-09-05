@@ -25,7 +25,7 @@ LICENSE_FILE = re.compile(
 def _arguments() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
     parser.add_argument("output", type=Path)
-    parser.add_argument("--distribution", default="paircue")
+    parser.add_argument("--distribution", default="subduet")
     parser.add_argument("--only", nargs="+", help="collect these named distributions instead")
     return parser.parse_args()
 
