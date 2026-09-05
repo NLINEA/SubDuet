@@ -26,6 +26,12 @@
 
 <p align="center"><a href="README.md">English</a> · <a href="README.zh-HK.md">繁體中文</a></p>
 
+<p align="center">
+  Built by <a href="https://unbounds.co/nlinea/">NLINEA</a> ·
+  A project of <a href="https://unbounds.co/">The Unbound Company</a> ·
+  <a href="https://unbounds.co/nlinea/subduet/">Project case study</a>
+</p>
+
 ![SubDuet starts with your player and guides you to a bilingual subtitle](docs/images/subduet-setup.png)
 
 SubDuet is the bridge between a private media collection and language learning. It finds or
