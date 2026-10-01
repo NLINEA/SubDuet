@@ -133,6 +133,9 @@ def build_pipeline(settings: PairCueSettings) -> SubtitlePipeline:
         bilingual_order=settings.bilingual_order,
         bilingual_merge_tolerance_ms=settings.bilingual_merge_tolerance_ms,
         bilingual_merge_min_match_ratio=settings.bilingual_merge_min_match_ratio,
+        readability_profile=settings.readability_profile,
+        retry_policy=settings.retry_policy,
+        retry_settings=settings.job_recipe_settings(),
     )
 
 

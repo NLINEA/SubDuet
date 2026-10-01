@@ -3,6 +3,7 @@
 const byId = (id) => document.getElementById(id);
 let token = "";
 let pollTimer = null;
+let resultRows = new Map();
 
 function authorization() {
   return { Authorization: `Bearer ${token}`, Accept: "application/json" };
@@ -42,15 +43,66 @@ function resultRow(item) {
   time.dateTime = item.updated_at;
   time.textContent = Number.isNaN(timestamp.valueOf()) ? "" : timestamp.toLocaleString();
   row.append(name, status, message, time);
+  if (item.review_id) {
+    const details = document.createElement("details");
+    const summary = document.createElement("summary");
+    const entries = document.createElement("ul");
+    const more = document.createElement("button");
+    const previous = document.createElement("button");
+    let offset = 0;
+    let loaded = false;
+    summary.textContent = "Review cue details";
+    more.textContent = "Load next 100 details";
+    previous.textContent = "Previous 100 details";
+    previous.hidden = true;
+    details.append(summary, entries, previous, more);
+    const load = async () => {
+      more.disabled = true;
+      previous.disabled = true;
+      try {
+        const page = await request(`/v1/reviews/${item.review_id}?offset=${offset}`);
+        // Replace rather than accumulate: the display stays bounded to one page.
+        entries.replaceChildren(...page.entries.map((entry) => {
+          const line = document.createElement("li");
+          line.textContent = entry.category === "readability"
+            ? `Cue ${entry.output_cue}: ${entry.metric}, ${entry.measured} > ${entry.limit}`
+            : `Cue ${entry.output_cue}: ${entry.category}`;
+          return line;
+        }));
+        loaded = true;
+        const end = page.offset + page.entries.length;
+        summary.textContent = `Review details: ${page.counts.source_only || 0} source-only, ${page.counts.target_only || 0} target-only, ${page.counts.readability || 0} readability (${page.offset + 1}–${end} of ${page.total})`;
+        more.hidden = end >= page.total;
+        previous.hidden = offset === 0;
+      } catch (error) {
+        summary.textContent = error.message;
+      } finally {
+        more.disabled = false;
+        previous.disabled = false;
+      }
+    };
+    details.addEventListener("toggle", () => { if (details.open && !loaded) load(); });
+    more.addEventListener("click", () => { offset += 100; load(); });
+    previous.addEventListener("click", () => { offset = Math.max(0, offset - 100); load(); });
+    row.append(details);
+  }
   return row;
 }
 
 function renderStatus(payload) {
   byId("working-count").textContent = String(payload.pending);
   byId("completed-count").textContent = String(payload.results.completed || 0);
-  byId("failed-count").textContent = String(payload.results.failed || 0);
+  byId("failed-count").textContent = String((payload.results.failed || 0)
+    + (payload.results.blocked || 0) + (payload.results.retry_exhausted || 0));
   const list = byId("recent-list");
-  list.replaceChildren(...payload.recent.map(resultRow));
+  const nextRows = new Map();
+  list.replaceChildren(...payload.recent.map((item) => {
+    const key = JSON.stringify(item);
+    const row = resultRows.get(key) || resultRow(item);
+    nextRows.set(key, row);
+    return row;
+  }));
+  resultRows = nextRows;
   const hasRecent = payload.recent.length > 0;
   list.hidden = !hasRecent;
   byId("empty-state").hidden = hasRecent;

@@ -29,6 +29,7 @@ from paircue.downloads_api import create_downloads_app
 from paircue.factory import build_pipeline, build_runtime, check_media_source_connection
 from paircue.models import MediaItem
 from paircue.services.download_station import DownloadStationClient
+from paircue.services.readability import ReadabilityProfile
 from paircue.services.subtitle_files import merge_bilingual_subtitles, parse_srt, write_srt
 from paircue.setup_server import (
     QuickPairResult,
@@ -87,6 +88,10 @@ def _parser() -> argparse.ArgumentParser:
     pair.add_argument("target", type=Path, help="learning-language SRT")
     pair.add_argument("-o", "--output", type=Path, required=True, help="bilingual output SRT")
     pair.add_argument(
+        "--overwrite", action="store_true",
+        help="explicitly replace an existing output file; never replace either input",
+    )
+    pair.add_argument(
         "--order",
         choices=("target-first", "source-first"),
         default="target-first",
@@ -94,6 +99,10 @@ def _parser() -> argparse.ArgumentParser:
     )
     pair.add_argument("--tolerance-ms", type=int, default=350)
     pair.add_argument("--min-match-ratio", type=float, default=0.7)
+    pair.add_argument(
+        "--readability-profile", type=Path,
+        help="JSON draft-review thresholds; warnings never rewrite subtitles",
+    )
     return parser
 
 
@@ -354,8 +363,12 @@ def _pair(args: argparse.Namespace) -> int:
     try:
         source = args.source.resolve(strict=True)
         target = args.target.resolve(strict=True)
+        if args.output.is_symlink():
+            raise ValueError("output must not be a symbolic link")
         output = args.output.resolve(strict=False)
-        if output in {source, target}:
+        if output in {source, target} or (
+            output.exists() and (output.samefile(source) or output.samefile(target))
+        ):
             raise ValueError("output must not overwrite either input subtitle")
         if not 0 <= args.tolerance_ms <= 2_000:
             raise ValueError("tolerance must be between 0 and 2000 milliseconds")
@@ -367,15 +380,33 @@ def _pair(args: argparse.Namespace) -> int:
             order=args.order,
             tolerance_ms=args.tolerance_ms,
             min_match_ratio=args.min_match_ratio,
+            readability_profile=(
+                ReadabilityProfile.model_validate_json(
+                    args.readability_profile.read_text(encoding="utf-8")
+                ) if args.readability_profile else None
+            ),
         )
-        write_srt(output, merged.subtitles)
+        write_srt(output, merged.subtitles, overwrite=args.overwrite)
+    except FileExistsError:
+        print(
+            "SubDuet could not pair these subtitles: output already exists. "
+            "Choose a new path or use --overwrite to explicitly replace it.",
+            file=sys.stderr,
+        )
+        return 2
     except (OSError, ValueError) as exc:
         print(f"SubDuet could not pair these subtitles: {exc}", file=sys.stderr)
         return 2
+    action = "Created" if merged.fully_paired else "Saved partial pairing to"
+    if merged.fully_paired and merged.needs_review:
+        action = "Saved pairing for review to"
+    cue_kind = "bilingual" if merged.fully_paired else "subtitle"
     print(
-        f"Created {output} with {len(merged.subtitles)} bilingual cues "
+        f"{action} {output} with {len(merged.subtitles)} {cue_kind} cues "
         f"({merged.source_match_ratio:.0%}/{merged.target_match_ratio:.0%} matched)."
     )
+    if merged.review_notice:
+        print(merged.review_notice)
     return 0
 
 
@@ -444,19 +475,20 @@ def _learn(args: argparse.Namespace) -> int:
         finally:
             pipeline.close()
 
-    destination = sys.stderr if result.status == "failed" else sys.stdout
+    successful = result.status in {"completed", "skipped"}
+    destination = sys.stdout if successful else sys.stderr
     print(f"{result.status}: {result.message}", file=destination)
     for output in result.outputs:
         print(f"created: {output}")
     if (
-        result.status != "failed"
+        successful
         and result.outputs
         and bool(getattr(args, "reveal_output", False))
     ):
         _reveal_path(result.outputs[-1])
     guided = isinstance(getattr(args, "setup_state", None), SetupState)
     has_bilingual = any(path.name.casefold().endswith(".mul.srt") for path in result.outputs)
-    if result.status == "failed":
+    if not successful:
         _update_guided_progress(args, "failed", result.message)
         return 1
     if guided and not has_bilingual:
@@ -804,6 +836,9 @@ def _quick_pair_subtitles(order: str) -> QuickPairResult | None:
         output=output,
         source_match_ratio=merged.source_match_ratio,
         target_match_ratio=merged.target_match_ratio,
+        unmatched_source_cues=merged.unmatched_source_cues,
+        unmatched_target_cues=merged.unmatched_target_cues,
+        readability_issues=merged.readability_issues,
     )
 
 
@@ -866,6 +901,7 @@ def _quick_pair_demo(
         output=output,
         source_match_ratio=merged.source_match_ratio,
         target_match_ratio=merged.target_match_ratio,
+        readability_issues=merged.readability_issues,
     )
 
 

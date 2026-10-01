@@ -9,6 +9,13 @@ import srt
 
 from paircue.languages import language_matches
 from paircue.services.atomic import atomic_write_text
+from paircue.services.readability import (
+    ReadabilityIssue,
+    ReadabilityProfile,
+    readability_review_notice,
+    review_readability,
+)
+from paircue.services.review import ReviewDetails
 
 
 class SubtitleLanguage(StrEnum):
@@ -57,6 +64,49 @@ class BilingualMergeResult:
     subtitles: list[srt.Subtitle]
     source_match_ratio: float
     target_match_ratio: float
+    unmatched_source_cues: tuple[int, ...] = ()
+    unmatched_target_cues: tuple[int, ...] = ()
+    readability_issues: tuple[ReadabilityIssue, ...] = ()
+
+    @property
+    def fully_paired(self) -> bool:
+        return self.source_match_ratio == 1 and self.target_match_ratio == 1
+
+    @property
+    def needs_review(self) -> bool:
+        return not self.fully_paired or bool(self.readability_issues)
+
+    @property
+    def review_details(self) -> ReviewDetails:
+        return ReviewDetails(self.unmatched_source_cues, self.unmatched_target_cues,
+                             self.readability_issues)
+
+    @property
+    def review_notice(self) -> str:
+        pairing = pairing_review_notice(
+            self.source_match_ratio, self.target_match_ratio,
+            self.unmatched_source_cues, self.unmatched_target_cues,
+        )
+        return " ".join(filter(None, (pairing, readability_review_notice(self.readability_issues))))
+
+
+def pairing_review_notice(
+    source_ratio: float, target_ratio: float,
+    source_cues: tuple[int, ...], target_cues: tuple[int, ...],
+) -> str:
+    """Identify retained single-language cues by their numbers in the output SRT."""
+
+    if source_ratio == 1 and target_ratio == 1:
+        return ""
+    parts = ["Review needed: partial timing pairing.",
+             f"{len(source_cues)} source-only; {len(target_cues)} target-only output cues."]
+    for label, cues in (("Source-only", source_cues), ("Target-only", target_cues)):
+        if cues:
+            numbers = ", ".join(str(cue) for cue in cues[:10])
+            remainder = f"; {len(cues) - 10} more" if len(cues) > 10 else ""
+            parts.append(f"{label} output SRT cues: {numbers}{remainder} ({len(cues)} total).")
+    parts.append("Unmatched text is retained without adding the missing language.")
+    return " ".join(parts)[:400]
 
 
 def classify_sidecar(media_path: Path, subtitle_path: Path) -> SubtitleLanguage | None:
@@ -164,7 +214,9 @@ def clean_spoken_dialogue(subtitles: list[srt.Subtitle]) -> list[srt.Subtitle]:
     return cleaned
 
 
-def write_srt(path: Path, subtitles: list[srt.Subtitle]) -> None:
+def write_srt(
+    path: Path, subtitles: list[srt.Subtitle], *, overwrite: bool = True
+) -> None:
     normalized = [
         srt.Subtitle(
             index=index,
@@ -175,7 +227,9 @@ def write_srt(path: Path, subtitles: list[srt.Subtitle]) -> None:
         )
         for index, cue in enumerate(subtitles, start=1)
     ]
-    atomic_write_text(path, srt.compose(normalized, reindex=False, strict=True))
+    atomic_write_text(
+        path, srt.compose(normalized, reindex=False, strict=True), overwrite=overwrite
+    )
 
 
 def translated_subtitles(
@@ -233,6 +287,7 @@ def merge_bilingual_subtitles(
     order: str = "target-first",
     tolerance_ms: int = 350,
     min_match_ratio: float = 0.7,
+    readability_profile: ReadabilityProfile | None = None,
 ) -> BilingualMergeResult:
     """Merge independently segmented language tracks using their synchronized timings."""
 
@@ -301,7 +356,15 @@ def merge_bilingual_subtitles(
         key=lambda pair: min(cue.start for cues in pair for cue in cues),
     )
     output: list[srt.Subtitle] = []
+    unmatched_source_cues: list[int] = []
+    unmatched_target_cues: list[int] = []
+    readability_issues: list[ReadabilityIssue] = []
+    profile = readability_profile or ReadabilityProfile()
     for index, (source_cues, target_cues) in enumerate(groups, start=1):
+        if not target_cues:
+            unmatched_source_cues.append(index)
+        if not source_cues:
+            unmatched_target_cues.append(index)
         all_cues = [*source_cues, *target_cues]
         source_text = _join_unique_cues(source_cues)
         target_text = _join_unique_cues(target_cues)
@@ -316,7 +379,15 @@ def merge_bilingual_subtitles(
                 content="\n".join(text for text in text_blocks if text),
             )
         )
-    return BilingualMergeResult(output, source_ratio, target_ratio)
+        readability_issues.extend(review_readability(
+            index, source_text, target_text,
+            round((output[-1].end - output[-1].start).total_seconds() * 1000), profile,
+        ))
+    return BilingualMergeResult(
+        output, source_ratio, target_ratio,
+        tuple(unmatched_source_cues), tuple(unmatched_target_cues),
+        tuple(readability_issues),
+    )
 
 
 def _timings_match(

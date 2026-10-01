@@ -97,6 +97,19 @@ def test_existing_source_subtitles_are_preserved_by_default() -> None:
     assert settings.clean_source_output is False
 
 
+def test_readability_profile_uses_environment_json_and_validated_desktop_strings(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("PAIRCUE_READABILITY_PROFILE", '{"target_line_codepoints_max":22}')
+    settings = PairCueSettings(_env_file=None)
+    assert settings.readability_profile.target_line_codepoints_max == 22
+    assert settings.readability_profile.source_line_codepoints_max == 42
+    desktop = PairCueSettings.model_validate({"readability_profile": '{"duration_ms_max":9000}'})
+    assert desktop.readability_profile.duration_ms_max == 9000
+    with pytest.raises(ValidationError):
+        PairCueSettings.model_validate({"readability_profile": '{"duration_ms_max":0}'})
+
+
 def test_target_language_is_canonicalized_and_named() -> None:
     settings = PairCueSettings(target_language="ZH-hk")
 

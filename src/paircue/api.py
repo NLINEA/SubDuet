@@ -6,7 +6,7 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Any, Literal, Protocol
 
-from fastapi import APIRouter, Depends, FastAPI, HTTPException, Request
+from fastapi import APIRouter, Depends, FastAPI, HTTPException, Query, Request
 from fastapi.middleware.trustedhost import TrustedHostMiddleware
 from fastapi.responses import Response
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
@@ -20,6 +20,7 @@ from paircue.security import (
     security_headers_middleware,
     token_dependency,
 )
+from paircue.services.review import ReviewPage
 
 
 class HealthResponse(BaseModel):
@@ -33,11 +34,17 @@ class QueuedResponse(BaseModel):
     message: str
 
 
+class RetryRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    item_id: str = Field(pattern=r"^[A-Za-z0-9_-]{1,128}$")
+
+
 class RecentResultResponse(BaseModel):
     media_name: str
     status: str
     message: str
     updated_at: str
+    review_id: str | None = None
 
 
 class StatusResponse(BaseModel):
@@ -153,6 +160,24 @@ def create_core_app(
             scan_message=snapshot.scan_message,
         )
 
+    @protected.post("/retry", response_model=QueuedResponse)
+    async def manual_retry(request: Request) -> QueuedResponse:
+        require_bounded_content_length(request, 4096)
+        if not request.headers.get("content-type", "").lower().startswith("application/json"):
+            raise HTTPException(status_code=415, detail="unsupported content type")
+        body = bytearray()
+        async for chunk in request.stream():
+            if len(body) + len(chunk) > 4096:
+                raise HTTPException(status_code=413, detail="request body is too large")
+            body.extend(chunk)
+        try:
+            payload = RetryRequest.model_validate_json(bytes(body))
+        except ValidationError as exc:
+            raise HTTPException(status_code=422, detail="invalid manual retry request") from exc
+        queued = await run_in_threadpool(runtime.retry_item_id, payload.item_id)
+        return QueuedResponse(queued=queued, message=("queued one manual attempt" if queued else
+                                                     "item unavailable or already pending"))
+
     @protected.get("/dashboard-context", response_model=DashboardContextResponse)
     async def dashboard_context() -> DashboardContextResponse:
         return DashboardContextResponse(
@@ -161,6 +186,17 @@ def create_core_app(
             target_language=settings.target_language,
             desktop=desktop_control is not None,
         )
+
+    @protected.get("/reviews/{review_id}")
+    async def review_details(
+        review_id: str, offset: int = Query(default=0, ge=0, le=2_000_000),
+    ) -> ReviewPage:
+        if len(review_id) != 64 or any(c not in "0123456789abcdef" for c in review_id):
+            raise HTTPException(status_code=404, detail="review details unavailable")
+        page = await run_in_threadpool(runtime.review_page, review_id, offset)
+        if page is None:
+            raise HTTPException(status_code=404, detail="review details unavailable")
+        return page
 
     if desktop_control is not None:
 

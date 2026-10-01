@@ -5,6 +5,7 @@ from fastapi.testclient import TestClient
 from paircue.api import create_core_app
 from paircue.config import PairCueSettings
 from paircue.runtime import RuntimeSnapshot
+from paircue.services.review import ReviewDetails, ReviewPage
 from paircue.services.state import RecentMediaState
 
 TOKEN = "a" * 32
@@ -31,6 +32,16 @@ class DummyRuntime:
     def submit_item_id(self, item_id: str) -> bool:
         self.rating_keys.append(item_id)
         return True
+
+    def retry_item_id(self, item_id: str) -> bool:
+        self.rating_keys.append("manual:" + item_id)
+        return True
+
+    def review_page(self, review_id: str, offset: int = 0) -> ReviewPage | None:
+        if review_id != "b" * 64:
+            return None
+        entries = ReviewDetails(source_only=tuple(range(1, 211))).entries()
+        return ReviewPage({"source_only": 210}, 210, offset, entries[offset:offset + 100])
 
     def status_snapshot(self) -> RuntimeSnapshot:
         return RuntimeSnapshot(
@@ -88,6 +99,39 @@ def test_health_is_public_but_scan_is_protected() -> None:
         assert client.post("/v1/scan").status_code == 401
         response = client.post("/v1/scan", headers={"Authorization": f"Bearer {TOKEN}"})
         assert response.json() == {"queued": True, "message": "queued 3 item(s)"}
+
+
+def test_review_details_are_protected_paginated_and_do_not_expose_paths() -> None:
+    with _client(DummyRuntime()) as client:
+        path = "/v1/reviews/" + "b" * 64
+        assert client.get(path).status_code == 401
+        headers = {"Authorization": f"Bearer {TOKEN}"}
+        page = client.get(path + "?offset=100", headers=headers)
+        assert page.status_code == 200 and len(page.json()["entries"]) == 100
+        assert page.json()["entries"][0]["output_cue"] == 101
+        assert client.get(path + "?offset=-1", headers=headers).status_code == 422
+        assert client.get("/v1/reviews/unknown", headers=headers).status_code == 404
+        assert client.get("/v1/reviews/" + "c" * 64, headers=headers).status_code == 404
+
+
+def test_manual_retry_requires_auth_and_an_explicit_item() -> None:
+    runtime = DummyRuntime()
+    with _client(runtime) as client:
+        assert client.post("/v1/retry", json={"item_id": "synthetic"}).status_code == 401
+        assert runtime.rating_keys == []
+        headers = {"Authorization": f"Bearer {TOKEN}"}
+        assert client.post("/v1/retry", headers=headers,
+                           json={"item_id": "../private"}).status_code == 422
+        assert client.post("/v1/retry", headers=headers,
+                           json={"item_id": "x" * 5000}).status_code == 413
+        response = client.post("/v1/retry", headers={**headers, "content-length": "1",
+                               "content-type": "application/json"}, content="x" * 5000)
+        assert response.status_code == 413
+        assert client.post("/v1/retry", headers=headers,
+                           content="not JSON").status_code == 415
+        response = client.post("/v1/retry", headers=headers, json={"item_id": "synthetic"})
+        assert response.json() == {"queued": True, "message": "queued one manual attempt"}
+        assert runtime.rating_keys == ["manual:synthetic"]
 
 
 def test_local_dashboard_is_packaged_and_never_embeds_the_api_token() -> None:

@@ -19,6 +19,8 @@ from urllib.parse import parse_qs, urlparse
 
 from paircue.config import PairCueSettings
 from paircue.services.atomic import atomic_write_bytes
+from paircue.services.readability import ReadabilityIssue, readability_review_notice
+from paircue.services.subtitle_files import pairing_review_notice
 
 log = logging.getLogger(__name__)
 
@@ -87,6 +89,25 @@ class QuickPairResult:
     output: Path
     source_match_ratio: float
     target_match_ratio: float
+    unmatched_source_cues: tuple[int, ...] = ()
+    unmatched_target_cues: tuple[int, ...] = ()
+    readability_issues: tuple[ReadabilityIssue, ...] = ()
+
+    @property
+    def fully_paired(self) -> bool:
+        return self.source_match_ratio == 1 and self.target_match_ratio == 1
+
+    @property
+    def needs_review(self) -> bool:
+        return not self.fully_paired or bool(self.readability_issues)
+
+    @property
+    def review_notice(self) -> str:
+        pairing = pairing_review_notice(
+            self.source_match_ratio, self.target_match_ratio,
+            self.unmatched_source_cues, self.unmatched_target_cues,
+        )
+        return " ".join(filter(None, (pairing, readability_review_notice(self.readability_issues))))
 
 
 class SetupHTTPServer(ThreadingHTTPServer):
@@ -253,16 +274,36 @@ class SetupRequestHandler(BaseHTTPRequestHandler):
                     {"completed": False, "message": "No subtitle files were changed."},
                 )
                 return
+            action = (
+                "Created a bilingual subtitle" if result.fully_paired else "Saved partial pairing"
+            )
+            if result.fully_paired and result.needs_review:
+                action = "Saved a bilingual subtitle for review"
+            message = (
+                f"{action} ({result.source_match_ratio:.0%}/"
+                f"{result.target_match_ratio:.0%} matched)."
+            )
+            if result.review_notice:
+                message += f" {result.review_notice}"
             self._json_response(
                 HTTPStatus.OK,
                 {
                     "completed": True,
+                    "fully_paired": result.fully_paired,
+                    "needs_review": result.needs_review,
+                    "unmatched_source_cues": result.unmatched_source_cues,
+                    "unmatched_target_cues": result.unmatched_target_cues,
+                    "readability_issues": [
+                        {
+                            "output_cue": issue.output_cue,
+                            "metric": issue.metric,
+                            "measured": issue.measured,
+                            "limit": issue.limit,
+                        }
+                        for issue in result.readability_issues
+                    ],
                     "filename": result.output.name,
-                    "message": (
-                        "Created a bilingual subtitle "
-                        f"({result.source_match_ratio:.0%}/"
-                        f"{result.target_match_ratio:.0%} matched)."
-                    ),
+                    "message": message,
                 },
             )
             self.server.state.quick_pair_output = result.output

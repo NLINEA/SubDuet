@@ -763,7 +763,7 @@ async function quickPairSubtitles() {
     completed = true;
     status.textContent = `${payload.message} ${payload.filename} is highlighted in your file manager. Keep it beside the video; if ${selectedPlatformName()} does not see it, match the video's base name while keeping .mul.srt. Reopen SubDuet to pair another.`;
     feedback.hidden = false;
-    button.textContent = "Pairing complete";
+    button.textContent = payload.needs_review ? "Saved — review needed" : "Pairing complete";
   } catch (error) {
     status.textContent = error.message;
   } finally {

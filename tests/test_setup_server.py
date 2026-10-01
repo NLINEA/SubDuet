@@ -263,7 +263,7 @@ def test_desktop_quick_pair_is_origin_protected_and_returns_only_the_output_name
 
     def quick_pair(order: str) -> QuickPairResult:
         observed_orders.append(order)
-        return QuickPairResult(output, 0.95, 0.9)
+        return QuickPairResult(output, 1, 1)
 
     server = SetupHTTPServer(
         assets,
@@ -302,8 +302,13 @@ def test_desktop_quick_pair_is_origin_protected_and_returns_only_the_output_name
     assert invalid.status_code == 400
     assert completed.json() == {
         "completed": True,
+        "fully_paired": True,
+        "needs_review": False,
+        "unmatched_source_cues": [],
+        "unmatched_target_cues": [],
+        "readability_issues": [],
         "filename": "Movie.mul.srt",
-        "message": "Created a bilingual subtitle (95%/90% matched).",
+        "message": "Created a bilingual subtitle (100%/100% matched).",
     }
     assert str(tmp_path) not in completed.text
     assert observed_orders == ["target-first"]
@@ -349,11 +354,105 @@ def test_desktop_safe_demo_uses_a_separate_origin_protected_action(tmp_path: Pat
     assert rejected.status_code == 403
     assert completed.json() == {
         "completed": True,
+        "fully_paired": True,
+        "needs_review": False,
+        "unmatched_source_cues": [],
+        "unmatched_target_cues": [],
+        "readability_issues": [],
         "filename": "SubDuet Demo.mul.srt",
         "message": "Created a bilingual subtitle (100%/100% matched).",
     }
     assert observed_orders == ["target-first"]
     assert server.state.quick_pair_output == output
+
+
+def test_desktop_partial_pairing_is_reviewable_after_a_failed_attempt(tmp_path: Path) -> None:
+    from paircue.setup_server import SetupQuickPairError
+
+    calls = 0
+    output = tmp_path / "Private Library" / "Movie.mul.srt"
+
+    def pair(order: str) -> QuickPairResult:
+        nonlocal calls
+        calls += 1
+        if calls == 1:
+            raise SetupQuickPairError("subtitle timing match is too low")
+        return QuickPairResult(output, 0.75, 0.75, (4,), (5,))
+
+    server = SetupHTTPServer(
+        Path(paircue.__file__).with_name("setup"), tmp_path / "unused.env",
+        desktop=True, quick_pair=pair,
+    )
+    thread = threading.Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    try:
+        with httpx.Client(base_url=server.origin) as client:
+            headers = {"Origin": server.origin, "Authorization": f"Bearer {server.token}"}
+            failed = client.post("/quick-pair?order=target-first", headers=headers)
+            assert failed.status_code == 400
+            assert not server.state.quick_pair_completed.is_set()
+            retried = client.post("/quick-pair?order=target-first", headers=headers)
+    finally:
+        server.shutdown()
+        server.server_close()
+        thread.join(timeout=5)
+
+    payload = retried.json()
+    assert payload["completed"] is True
+    assert payload["fully_paired"] is False
+    assert payload["needs_review"] is True
+    assert payload["unmatched_source_cues"] == [4]
+    assert payload["unmatched_target_cues"] == [5]
+    assert "Saved partial pairing" in payload["message"]
+    assert "Source-only output SRT cues: 4" in payload["message"]
+    assert "Target-only output SRT cues: 5" in payload["message"]
+    assert str(tmp_path) not in retried.text
+    assert server.state.quick_pair_completed.is_set()
+    assert not (tmp_path / "unused.env").exists()
+
+
+def test_desktop_full_pairing_reports_readability_values_without_missing_cues(
+    tmp_path: Path,
+) -> None:
+    from paircue.services.readability import ReadabilityIssue
+
+    output = tmp_path / "Synthetic.mul.srt"
+    result = QuickPairResult(output, 1.0, 1.0, readability_issues=(
+        ReadabilityIssue(1, "total_lines", 8, 4),
+        ReadabilityIssue(1, "duration_ms", 16500, 7000),
+    ))
+    server = SetupHTTPServer(
+        Path(paircue.__file__).with_name("setup"), tmp_path / "unused.env",
+        desktop=True, quick_pair=lambda order: result,
+    )
+    thread = threading.Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    try:
+        with httpx.Client(base_url=server.origin) as client:
+            response = client.post("/quick-pair?order=source-first", headers={
+                "Origin": server.origin, "Authorization": f"Bearer {server.token}",
+            })
+    finally:
+        server.shutdown()
+        server.server_close()
+        thread.join(timeout=5)
+
+    payload = response.json()
+    assert response.status_code == 200
+    assert payload["completed"] is True
+    assert payload["fully_paired"] is True
+    assert payload["needs_review"] is True
+    assert payload["unmatched_source_cues"] == payload["unmatched_target_cues"] == []
+    assert payload["readability_issues"] == [
+        {"output_cue": 1, "metric": "total_lines", "measured": 8, "limit": 4},
+        {"output_cue": 1, "metric": "duration_ms", "measured": 16500, "limit": 7000},
+    ]
+    assert "Saved a bilingual subtitle for review" in payload["message"]
+    assert "8 lines exceeds 4 lines" in payload["message"]
+    assert "16500 ms exceeds 7000 ms" in payload["message"]
+    assert "partial" not in payload["message"]
+    assert server.state.quick_pair_completed.is_set()
+    assert not (tmp_path / "unused.env").exists()
 
 
 def test_setup_server_rejects_cross_origin_and_oversized_requests(tmp_path: Path) -> None:

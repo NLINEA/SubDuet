@@ -8,6 +8,9 @@ from paircue import cli, diagnostics
 from paircue.cli import _default_setup_output, main
 from paircue.config import PairCueSettings
 from paircue.models import MediaItem, ProcessResult
+from paircue.services import atomic
+from paircue.services.readability import ReadabilityProfile
+from paircue.services.subtitle_files import parse_srt
 from paircue.setup_server import SetupState
 
 SOURCE = """1
@@ -25,6 +28,54 @@ TARGET = """1
 世界
 
 """
+
+
+def test_pair_readability_review_is_saved_and_custom_profile_never_rewrites(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str],
+) -> None:
+    source = tmp_path / "source.srt"
+    target = tmp_path / "target.srt"
+    source.write_text(SOURCE.replace("Hello world", "A" * 48))
+    target.write_text(TARGET)
+    original = (source.read_bytes(), target.read_bytes())
+    output = tmp_path / "review.srt"
+    assert main(["pair", str(source), str(target), "-o", str(output)]) == 0
+    notice = capsys.readouterr().out
+    assert "Saved pairing for review" in notice
+    assert "source line length 48 codepoints exceeds 42" in notice
+    assert "partial" not in notice
+
+    profile = tmp_path / "profile.json"
+    profile.write_text(ReadabilityProfile(source_line_codepoints_max=48).model_dump_json())
+    relaxed = tmp_path / "relaxed.srt"
+    assert main(["pair", str(source), str(target), "-o", str(relaxed),
+                 "--readability-profile", str(profile)]) == 0
+    clean_notice = capsys.readouterr().out
+    assert "Created" in clean_notice
+    assert "Readability review needed" not in clean_notice
+    assert output.read_bytes() == relaxed.read_bytes()
+    assert (source.read_bytes(), target.read_bytes()) == original
+
+
+def test_invalid_readability_profile_retains_output_then_explicit_retry_succeeds(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str],
+) -> None:
+    source = tmp_path / "source.srt"
+    target = tmp_path / "target.srt"
+    output = tmp_path / "old.srt"
+    profile = tmp_path / "profile.json"
+    source.write_text(SOURCE)
+    target.write_text(TARGET)
+    output.write_bytes(b"old output")
+    profile.write_text('{"total_lines_max":0}')
+    args = ["pair", str(source), str(target), "-o", str(output), "--overwrite",
+            "--readability-profile", str(profile)]
+    assert main(args) == 2
+    assert output.read_bytes() == b"old output"
+    assert "total_lines_max" in capsys.readouterr().err
+    profile.write_text('{"total_lines_max":4}')
+    assert main(args) == 0
+    assert [c.content for c in parse_srt(output)] == ["你好\n世界\nHello world"]
 
 
 class RecordingPipeline:
@@ -70,19 +121,199 @@ def test_pair_command_creates_bilingual_srt(
     assert "100%/100% matched" in capsys.readouterr().out
 
 
+@pytest.mark.parametrize("overwrite", [False, True])
 def test_pair_command_will_not_overwrite_an_input(
     tmp_path: Path,
     capsys: pytest.CaptureFixture[str],
+    overwrite: bool,
 ) -> None:
     source = tmp_path / "movie.en.srt"
     target = tmp_path / "movie.zh-TW.srt"
     source.write_text(SOURCE, encoding="utf-8")
     target.write_text(TARGET, encoding="utf-8")
 
-    result = main(["pair", str(source), str(target), "-o", str(source)])
+    options = ["--overwrite"] if overwrite else []
+    result = main(["pair", str(source), str(target), "-o", str(source), *options])
 
     assert result == 2
     assert "must not overwrite" in capsys.readouterr().err
+    assert source.read_text(encoding="utf-8") == SOURCE
+
+
+def _pair_inputs(tmp_path: Path) -> tuple[Path, Path]:
+    source = tmp_path / "movie.en.srt"
+    target = tmp_path / "movie.zh-TW.srt"
+    source.write_text(SOURCE, encoding="utf-8")
+    target.write_text(TARGET, encoding="utf-8")
+    return source, target
+
+
+def _partial_inputs(tmp_path: Path) -> tuple[Path, Path]:
+    source = tmp_path / "movie.en.srt"
+    target = tmp_path / "movie.zh-TW.srt"
+    source.write_text("\n\n".join(
+        f"{i + 1}\n00:00:{i * 4 + 1:02},000 --> 00:00:{i * 4 + 4:02},000\nEnglish {i + 1}"
+        for i in range(4)
+    ) + "\n\n", encoding="utf-8")
+    target.write_text("\n\n".join(
+        f"{i + 1}\n00:{'01' if i == 3 else '00'}:{i * 4 + 1:02},000 --> "
+        f"00:{'01' if i == 3 else '00'}:{i * 4 + 4:02},000\n中文 {i + 1}"
+        for i in range(4)
+    ) + "\n\n", encoding="utf-8")
+    return source, target
+
+
+def test_pair_retains_an_existing_output_until_explicit_overwrite(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str],
+) -> None:
+    source, target = _pair_inputs(tmp_path)
+    output = tmp_path / "movie.mul.srt"
+    previous = b"previous approved output\n"
+    output.write_bytes(previous)
+    command = ["pair", str(source), str(target), "-o", str(output)]
+
+    assert main(command) == 2
+    assert output.read_bytes() == previous
+    assert "--overwrite" in capsys.readouterr().err
+    assert main([*command, "--overwrite"]) == 0
+    assert "你好\n世界\nHello world" in output.read_text(encoding="utf-8")
+    assert source.read_text(encoding="utf-8") == SOURCE
+    assert target.read_text(encoding="utf-8") == TARGET
+
+
+def test_pair_preserves_an_output_created_during_publication(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    source, target = _pair_inputs(tmp_path)
+    output = tmp_path / "movie.mul.srt"
+    original_link = atomic.os.link
+
+    def competing_writer(temporary: Path, destination: Path) -> None:
+        destination.write_bytes(b"another writer's approved output")
+        original_link(temporary, destination)
+
+    monkeypatch.setattr(atomic.os, "link", competing_writer)
+    assert main(["pair", str(source), str(target), "-o", str(output)]) == 2
+    assert output.read_bytes() == b"another writer's approved output"
+    assert not list(tmp_path.glob(".*.tmp"))
+
+
+def test_pair_failed_publication_leaves_no_empty_output_and_can_retry(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    source, target = _pair_inputs(tmp_path)
+    output = tmp_path / "movie.mul.srt"
+    command = ["pair", str(source), str(target), "-o", str(output)]
+
+    def fail_publication(*args: object) -> None:
+        raise PermissionError("synthetic write failure")
+
+    with monkeypatch.context() as fault:
+        fault.setattr(atomic.os, "link", fail_publication)
+        assert main(command) == 2
+    assert not output.exists()
+    assert not list(tmp_path.glob(".*.tmp"))
+    assert main(command) == 0
+    assert output.is_file()
+
+
+def test_pair_failed_explicit_overwrite_retains_previous_output(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    source, target = _pair_inputs(tmp_path)
+    output = tmp_path / "movie.mul.srt"
+    output.write_bytes(b"previous approved output")
+
+    def fail_replacement(*args: object) -> None:
+        raise PermissionError("synthetic replacement failure")
+
+    monkeypatch.setattr(atomic.os, "replace", fail_replacement)
+    assert main(["pair", str(source), str(target), "-o", str(output), "--overwrite"]) == 2
+    assert output.read_bytes() == b"previous approved output"
+    assert not list(tmp_path.glob(".*.tmp"))
+
+
+@pytest.mark.parametrize("alias_kind", ["symlink", "hardlink"])
+def test_pair_explicit_overwrite_cannot_replace_an_input_alias(
+    tmp_path: Path, alias_kind: str,
+) -> None:
+    source, target = _pair_inputs(tmp_path)
+    output = tmp_path / "alias.srt"
+    if alias_kind == "symlink":
+        output.symlink_to(source)
+    else:
+        output.hardlink_to(source)
+    assert main(["pair", str(source), str(target), "-o", str(output), "--overwrite"]) == 2
+    assert source.read_text(encoding="utf-8") == SOURCE
+
+
+def test_pair_reports_retained_unmatched_output_cues(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str],
+) -> None:
+    source, target = _partial_inputs(tmp_path)
+    before = (source.read_bytes(), target.read_bytes())
+    output = tmp_path / "movie.mul.srt"
+    assert main(["pair", str(source), str(target), "-o", str(output)]) == 0
+
+    message = capsys.readouterr().out
+    assert "Saved partial pairing" in message
+    assert "5 subtitle cues (75%/75% matched)" in message
+    assert "Review needed" in message
+    assert "Source-only output SRT cues: 4" in message
+    assert "Target-only output SRT cues: 5" in message
+    assert "5 bilingual cues" not in message
+    cues = parse_srt(output)
+    assert cues[3].content == "English 4"
+    assert cues[4].content == "中文 4"
+    assert before == (source.read_bytes(), target.read_bytes())
+
+
+def test_pair_strict_partial_rejection_preserves_previous_result_and_can_retry(
+    tmp_path: Path,
+) -> None:
+    source, target = _partial_inputs(tmp_path)
+    output = tmp_path / "movie.mul.srt"
+    output.write_bytes(b"previous approved output")
+    command = ["pair", str(source), str(target), "-o", str(output), "--overwrite"]
+    assert main([*command, "--min-match-ratio", "1"]) == 2
+    assert output.read_bytes() == b"previous approved output"
+    target.write_text(source.read_text().replace("English", "中文"), encoding="utf-8")
+    assert main([*command, "--min-match-ratio", "1"]) == 0
+
+
+def test_desktop_quick_pair_returns_unmatched_output_cue_numbers(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    source, target = _partial_inputs(tmp_path)
+    choices = iter((source, target))
+    monkeypatch.setattr(cli, "_choose_subtitle_path", lambda role: next(choices))
+    monkeypatch.setattr(cli, "_reveal_path", lambda path: None)
+    result = cli._quick_pair_subtitles("target-first")
+    assert result is not None
+    assert not result.fully_paired
+    assert result.unmatched_source_cues == (4,)
+    assert result.unmatched_target_cues == (5,)
+    assert "Review needed" in result.review_notice
+
+
+def test_desktop_quick_pair_propagates_readability_only_review(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    source, target = _pair_inputs(tmp_path)
+    source.write_text(SOURCE.replace("Hello world", "A" * 48), encoding="utf-8")
+    before = (source.read_bytes(), target.read_bytes())
+    choices = iter((source, target))
+    monkeypatch.setattr(cli, "_choose_subtitle_path", lambda role: next(choices))
+    monkeypatch.setattr(cli, "_reveal_path", lambda path: None)
+
+    result = cli._quick_pair_subtitles("source-first")
+
+    assert result is not None and result.fully_paired and result.needs_review
+    assert result.unmatched_source_cues == result.unmatched_target_cues == ()
+    assert "source line length 48 codepoints exceeds 42" in result.review_notice
+    assert "partial" not in result.review_notice
+    assert [cue.content for cue in parse_srt(result.output)] == ["A" * 48 + "\n你好\n世界"]
+    assert before == (source.read_bytes(), target.read_bytes())
 
 
 def test_desktop_quick_pair_creates_a_new_local_output_without_overwriting(

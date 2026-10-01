@@ -13,6 +13,7 @@ def test_pipeline_wires_approved_connections_and_the_same_audio_choice(tmp_path:
     settings = PairCueSettings(
         _env_file=None, platform="filesystem", media_root=tmp_path, state_dir=tmp_path / "state",
         source_language="ja", audio_stream_index=3,
+        readability_profile={"target_line_codepoints_max": 22},
         translation_enabled=True, translation_provider="local",
         translation_base_url="http://localhost:9000/v1", translation_model="model",
         translation_approved_origin="http://localhost:9000",
@@ -30,6 +31,7 @@ def test_pipeline_wires_approved_connections_and_the_same_audio_choice(tmp_path:
         assert pipeline.transcriber.base_url == "http://localhost:9002/v1"
         assert pipeline.translator.primary.base_url == "http://localhost:9000/v1"
         assert pipeline.translator.fallback.base_url == "http://localhost:9001/v1"
+        assert pipeline.readability_profile.target_line_codepoints_max == 22
     finally:
         pipeline.close()
 

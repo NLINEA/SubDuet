@@ -8,6 +8,7 @@ from dataclasses import dataclass
 from paircue.models import MediaItem
 from paircue.services.media_source import MediaSource
 from paircue.services.pipeline import SubtitlePipeline
+from paircue.services.review import ReviewPage
 from paircue.services.state import RecentMediaState
 
 log = logging.getLogger(__name__)
@@ -26,7 +27,7 @@ class RuntimeSnapshot:
 class JobCoordinator:
     def __init__(self, pipeline: SubtitlePipeline, max_size: int = 1000) -> None:
         self.pipeline = pipeline
-        self._queue: queue.Queue[MediaItem | None] = queue.Queue(maxsize=max_size)
+        self._queue: queue.Queue[tuple[MediaItem, bool] | None] = queue.Queue(maxsize=max_size)
         self._pending: set[str] = set()
         self._guard = threading.Lock()
         self._worker: threading.Thread | None = None
@@ -37,13 +38,13 @@ class JobCoordinator:
         self._worker = threading.Thread(target=self._run, name="paircue-worker", daemon=True)
         self._worker.start()
 
-    def submit(self, item: MediaItem) -> bool:
+    def submit(self, item: MediaItem, *, manual_retry: bool = False) -> bool:
         with self._guard:
             if item.queue_key in self._pending:
                 return False
             self._pending.add(item.queue_key)
         try:
-            self._queue.put_nowait(item)
+            self._queue.put_nowait((item, manual_retry))
         except queue.Full:
             with self._guard:
                 self._pending.discard(item.queue_key)
@@ -62,12 +63,15 @@ class JobCoordinator:
 
     def _run(self) -> None:
         while True:
-            item = self._queue.get()
-            if item is None:
+            queued = self._queue.get()
+            if queued is None:
                 self._queue.task_done()
                 return
+            item, manual_retry = queued
             try:
-                result = self.pipeline.process(item)
+                result = self.pipeline.process(
+                    item, retry_mode="manual" if manual_retry else "automatic",
+                )
                 log.info("%s: %s", item.context_label, result.message)
             except Exception:
                 log.exception("worker failed before processing %s", item.context_label)
@@ -140,6 +144,13 @@ class CoreRuntime:
     def submit_item_id(self, item_id: str) -> bool:
         item = self.media_source.item_for_id(item_id)
         return self.coordinator.submit(item) if item is not None else False
+
+    def review_page(self, review_id: str, offset: int = 0) -> ReviewPage | None:
+        return self.coordinator.pipeline.state.review_page(review_id, offset)
+
+    def retry_item_id(self, item_id: str) -> bool:
+        item = self.media_source.item_for_id(item_id)
+        return self.coordinator.submit(item, manual_retry=True) if item is not None else False
 
     def submit_rating_key(self, rating_key: str) -> bool:
         """Backward-compatible name used by the Plex webhook API."""

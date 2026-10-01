@@ -204,6 +204,120 @@ PAIRCUE_BILINGUAL_MERGE_TOLERANCE_MS=350
 PAIRCUE_BILINGUAL_MERGE_MIN_MATCH_RATIO=0.7
 ```
 
+## Persistent automatic attempts
+
+Library polling and webhook jobs use a SQLite attempt ledger. The default allows only the first
+automatic attempt; additional retries require an explicit policy. Configure `PAIRCUE_RETRY_POLICY`
+as JSON with `max_auto_attempts` (1–10, including the first), `retry_delays_ms` (1–9 nonnegative
+integer delays, reusing the last for later waits), and `lease_ms` (1–86400000). Defaults are one
+attempt, delays `[60000,300000]`, and a 900000 ms lease. These are operational choices, not universal
+subtitle correctness or provider-budget limits. The synthetic C12 test explicitly uses three
+attempts and delays `[1000,4000]`; those are test parameters, not a production recommendation.
+
+The complete media and SRT contents, selected language/audio settings, output-affecting recipe,
+glossary/context, and explicit recipe/validation versions determine job identity. Credentials,
+polling intervals, retry policy, and output paths do not. Each identity keeps its original policy
+and spent allowance across polling, process restart, restored inputs, and moved identical inputs.
+Changing policy applies to new identities; it does not mint a new allowance for an existing job.
+Changing source contents or output settings creates a different identity. Recipe/validation
+versions must change when corresponding processing rules change.
+Recorded generated-track content is normalized through the content ledger across paths. Conflicting
+recorded original identities are blocked rather than guessed or granted a fresh allowance.
+
+Claims and counters commit before processing. Duplicate workers share the claim. Owner, fence and
+lease are checked after each temporary file is prepared, immediately before its atomic publication,
+under the SQLite writer guard. An expired or superseded claim is refused at that boundary. A native
+filesystem call can cross the lease deadline after that check; if it succeeds, the returned blocked
+result explicitly lists the published files and requires provenance recovery, rather than claiming
+no publication or committing success. A stale worker cannot replace a successor's state. Failures become
+`retry_wait` with a persisted deadline, then `retry_exhausted` at the limit. Set the lease long
+enough for the expected processing time; this implementation does not renew a long-running lease.
+SRT work stays in a disposable staging folder until guarded publication. Media is read through a
+local link and its complete hash is rechecked before publication; it is not an immutable copy.
+Full media hashing adds I/O and currently holds the SQLite writer lock during the final check.
+
+The protected `POST /v1/retry` endpoint accepts `{"item_id":"the-library-item-id"}`. Each accepted
+claim records exactly one manual attempt separately; it never resets the automatic counter.
+Queued requests are not durable until claimed. Legacy records without trustworthy counters stay
+`blocked` with `legacy_attempts_unknown`; an explicit manual attempt is allowed, but their unknown
+automatic allowance never silently becomes zero, including after settings changes.
+
+Before publishing, the ledger commits an intent containing frozen input/settings/version hashes,
+exact destination paths, expected output hashes and sizes, the result message, and full review
+details. It then commits each prepared file's device/inode identity before final creation. Files
+are created without replacement, except the existing explicit source-cleaning option. After a
+restart, only a complete match of that proof, current inputs/settings, and every published file
+can restore `completed`. Recovery restores the original partial-pairing/readability review details
+and consumes no attempt, performs no file publication, and calls no provider. A file with the same
+name or even the same bytes but a different identity is not adopted.
+
+Missing, changed, partial, symlinked, legacy, or unsupported proofs stay `blocked`; existing files
+are kept. No inferred proof is added to old outputs. Inspect an unwanted file before archiving it.
+An explicit manual retry may rebuild an archived final from a completed recorded attempt with
+matching input/settings/version identity as a separate attempt; it does not reset automatic
+allowance. Incomplete publication intents cannot
+be restarted through that exception. An expired native call that successfully created a file is
+reported as publication occurring, with exact observed paths retained in the attempt's ledger;
+subsequent recovery still requires the full proof and cannot let the stale owner change a
+successor's state.
+
+Filesystem publication and SQLite completion are separate operations, not one atomic transaction.
+Recovery reconciles a process crash; it is not a power-loss or malicious filesystem/ledger tampering
+guarantee. It requires stable device/inode identities, hard-link support, and safe nonblocking
+descriptor opens. Recovery refuses non-regular files and validates the opened descriptor before
+hashing; missing nonblocking support fails closed. Input-freezing errors are stored as blocked
+with prior review details retained, unless a newer or active worker's state must be preserved.
+NAS and other filesystem/platform behavior still need validation. The check cannot prevent a file
+being changed after verification. Abrupt exit may leave staging or hidden temporary files; recovery
+keeps these remnants rather than guessing which files to delete. These limits count pipeline
+attempts, not each provider's internal
+HTTP retry; they do not guarantee exactly-once provider calls or a spend cap.
+Explicit one-shot `learn` processing is separate from automatic polling and its retry allowance.
+
+## Readability review
+
+Existing-track pairing reports a separate readability warning even when timing coverage is 100%.
+Background summaries reserve space for both partial-pairing and readability reasons and counts.
+The full unmatched cue lists and measured readability diagnostics are stored separately in SQLite,
+without subtitle text. Expand **Review cue details** on the dashboard to browse pages of at most
+100 entries; refreshing an unchanged result keeps the open page. The authenticated
+`GET /v1/reviews/{review_id}?offset=0` route serves the same bounded pages. New results replace
+the previous details for that media item. These diagnostics never change subtitle bytes.
+It lists the output SRT cue, measurement, and limit. Warnings never reflow, split, or retime cues,
+drop text, or invent translations. Partial timing coverage keeps its separate missing-language
+cue notice. A saved file and full timing coverage do not prove meaning or playback readability.
+
+The generic **proposed draft profile** has these configurable fields:
+
+| JSON field | Default | Measurement |
+|---|---:|---|
+| `source_line_codepoints_max` | 42 | Longest source line, including spaces and punctuation |
+| `target_line_codepoints_max` | 42 | Longest target line, including spaces and punctuation |
+| `lines_per_language_max` | 2 | Lines in each emitted language block |
+| `total_lines_max` | 4 | Lines in the complete output cue |
+| `duration_ms_max` | 7000 | Duration of the output cue in milliseconds |
+
+These are review prompts, not universal standards. Unicode codepoint counts do not measure pixels,
+font width, clipping, or normal-speed reading. This profile does not check reading speed or meaning.
+Limits are inclusive, must be positive integers, and omitted fields keep their defaults. Source
+and target refer to the input roles even when the display order is reversed.
+
+For CLI pairing, save a JSON profile such as `{"target_line_codepoints_max":22}` and pass its path:
+
+```bash
+subduet pair Movie.en.srt Movie.zh-TW.srt -o Movie.mul.srt --readability-profile readability.json
+```
+
+The library service accepts the same JSON object in the optional configuration variable:
+
+```dotenv
+PAIRCUE_READABILITY_PROFILE={"target_line_codepoints_max":22}
+```
+
+Desktop Quick Pair uses the generic profile and shows review reasons in its existing result panel.
+It has no profile editor. Relaxing a limit changes the warning only; the subtitle output stays the
+same. Outputs that need review are still saved for intentional inspection.
+
 ## Automatic synchronization
 
 Synchronization is enabled by default. SubDuet uses a user-installed FFmpeg to decode temporary
