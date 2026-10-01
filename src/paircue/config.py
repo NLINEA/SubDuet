@@ -10,6 +10,8 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from paircue.ai_connections import normalize_ai_url, validate_ai_connection
 from paircue.languages import canonicalize_language_tag, language_name
+from paircue.services.readability import ReadabilityProfile
+from paircue.services.retry import RetryPolicy
 
 
 def _secret_value(secret: SecretStr) -> str:
@@ -57,6 +59,12 @@ class PairCueSettings(BaseSettings):
 
     scan_interval_seconds: int = Field(default=1800, ge=60, le=86400)
     worker_queue_size: int = Field(default=1000, ge=1, le=10000)
+    retry_policy: RetryPolicy = Field(default_factory=RetryPolicy)
+
+    @field_validator("retry_policy", mode="before")
+    @classmethod
+    def parse_retry_policy(cls, value: object) -> object:
+        return RetryPolicy.model_validate_json(value) if isinstance(value, str) else value
     subtitle_download_enabled: bool = True
     opensubtitles_api_key: SecretStr = SecretStr("")
     opensubtitles_username: str = ""
@@ -90,6 +98,15 @@ class PairCueSettings(BaseSettings):
     bilingual_order: Literal["target-first", "source-first"] = "target-first"
     bilingual_merge_tolerance_ms: int = Field(default=350, ge=0, le=2000)
     bilingual_merge_min_match_ratio: float = Field(default=0.7, ge=0.5, le=1)
+    readability_profile: ReadabilityProfile = Field(default_factory=ReadabilityProfile)
+
+    @field_validator("readability_profile", mode="before")
+    @classmethod
+    def parse_readability_profile(cls, value: object) -> object:
+        # Desktop settings also arrive as parsed environment-file strings.
+        if isinstance(value, str):
+            return ReadabilityProfile.model_validate_json(value)
+        return value
 
     translation_enabled: bool = False
     translation_base_url: str = ""
@@ -271,6 +288,21 @@ class PairCueSettings(BaseSettings):
     @property
     def effective_source_language_name(self) -> str:
         return self.source_language_name or language_name(self.source_language)
+
+    def job_recipe_settings(self) -> dict[str, object]:
+        # Explicit allowlist: never hash credentials, polling, paths, or retry allowances.
+        fields = {
+            "subtitle_download_enabled", "sync_enabled", "sync_max_offset_seconds",
+            "sync_min_confidence", "audio_stream_index", "transcription_enabled",
+            "transcription_base_url", "transcription_provider", "transcription_model",
+            "transcription_chunk_seconds", "transcription_prompt", "source_language_name",
+            "target_language_name", "target_language_style", "translation_enabled",
+            "translation_base_url", "translation_provider", "translation_model",
+            "translation_disable_thinking", "translation_final_check_enabled",
+            "translation_batch_size", "fallback_base_url", "fallback_provider", "fallback_model",
+            "fallback_disable_thinking",
+        }
+        return self.model_dump(mode="json", include=fields)
 
 
 class DownloadStationSettings(BaseSettings):

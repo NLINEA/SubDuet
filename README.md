@@ -109,6 +109,37 @@ For command-line users:
 subduet pair Movie.ja.srt Movie.en.srt -o Movie.mul.srt
 ```
 
+The CLI refuses an existing output. Choose a new filename, or explicitly add `--overwrite` to
+replace that output; neither input can be replaced, even with this option. Desktop Quick Pair
+keeps its existing numbered-copy behavior.
+
+Timing pairing can be partial when it meets the configured minimum (70% by default). A partial
+result is saved with **Review needed**, and its source-only and target-only **output SRT cue
+numbers** are listed. All unmatched text remains in the file; no missing translation is invented.
+Inspect those cues before using the result. A saved file is not confirmation of complete pairing
+or translation quality. Require every input cue to have a timing match with:
+
+```bash
+subduet pair Movie.ja.srt Movie.en.srt -o Movie.strict.mul.srt --min-match-ratio 1
+```
+
+Full timing coverage can also need **readability review**. CLI, desktop Quick Pair, and library
+results list the output cue, measured value, and proposed limit for long lines, too many lines,
+or long duration. These warnings preserve the emitted text and timing; they do not split cues or
+declare translations correct. The generic draft profile uses 42 Unicode codepoints per line in
+each language, two lines per language, four total lines, and 7000 ms maximum duration. These are
+configurable review thresholds, not universal rules or proof of playback readability.
+
+For example, save `{"target_line_codepoints_max": 22}` as `readability.json` to use a tighter
+target-language line threshold:
+
+```bash
+subduet pair Movie.en.srt Movie.zh-TW.srt -o Movie.mul.srt --readability-profile readability.json
+```
+
+See [readability profiles](docs/CONFIGURATION.md#readability-review) for all fields and library
+configuration. Desktop Quick Pair uses the generic profile.
+
 ## How one video becomes bilingual
 
 SubDuet takes the least invasive route that can produce a complete result:
@@ -123,7 +154,8 @@ existing tracks → optional subtitle search → optional speech generation
 - Speech generation and translation are opt-in and use the endpoint you configure.
 - When enabled, the AI final check reviews the draft through that same translation connection.
 - A translation is published only when every cue passes both completeness checks.
-- A previous bilingual output is never overwritten.
+- Automatic processing and desktop Quick Pair never overwrite a previous bilingual output.
+  CLI pairing only replaces an output when you explicitly pass `--overwrite`.
 
 FFmpeg is optional and not bundled. Pairing two SRT files, the safe demo, search, and translation
 can work without it. Embedded-subtitle extraction, audio alignment, and speech generation need a

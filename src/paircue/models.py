@@ -4,6 +4,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Literal
 
+from paircue.services.review import ReviewDetails
+
 MediaType = Literal["movie", "episode"]
 
 
@@ -38,6 +40,8 @@ class MediaItem:
 
 @dataclass(frozen=True, slots=True)
 class ProcessResult:
-    status: Literal["skipped", "completed", "failed"]
+    status: Literal["skipped", "completed", "failed", "running", "retry_wait",
+                    "retry_exhausted", "blocked"]
     message: str
     outputs: tuple[Path, ...] = ()
+    review_details: ReviewDetails | None = None

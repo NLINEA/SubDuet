@@ -2,6 +2,32 @@
 
 ## Unreleased
 
+- Reject non-regular or substituted recovery targets before reading, including FIFOs, using
+  nonblocking descriptor validation. Persist input-freezing holds without losing prior review
+  details or replacing a newer worker's state.
+- Persist publication intents, prepared-file identity/hash proof, exact output paths, and review
+  details before final creation. Reconcile only fully verified own output after a process crash
+  without repeating processing; keep missing, modified, or legacy outputs blocked and untouched.
+  Record late native-call publication without changing a successor's state. Filesystem and SQLite
+  remain separate operations; external exactly-once calls and provider budgets are not guaranteed.
+- Preserve automatic allowances for moved recorded generated tracks, check worker claims after
+  temporary-file preparation, and report files actually published in a lease-expiry race.
+- Persist automatic job attempt limits, retry deadlines, and worker claims in SQLite. Record
+  explicit manual attempts separately, retain unknown legacy counters, stage sidecars before
+  guarded publication, and block unverified existing outputs or uncertain publication recovery.
+  Additional automatic attempts are opt-in; provider spend and full provenance remain separate.
+
+- Keep both partial-pairing and readability categories in bounded background summaries. Retain
+  full cue diagnostics separately in SQLite and expose protected, paginated dashboard details.
+
+- Report readability review reasons and measured values for long lines, excess lines, and long
+  duration through CLI, desktop Quick Pair, and existing-track library results. Keep full timing
+  coverage separate from review status. Proposed thresholds are configurable; no text or timing
+  is rewritten by these diagnostics.
+- Refuse existing CLI pairing outputs by default; require explicit `--overwrite`, always protect
+  input subtitles, and retain previous files when publication fails.
+- Identify partial timing pairing in CLI, desktop, and library results. List retained source-only
+  and target-only output SRT cues for review without dropping text or adding translations.
 - Require explicit AI destination confirmation for translation, transcription, and fallback.
   Show the provider host before key entry; clear entered keys when changing providers or endpoints.
   Remove implicit translation vendor/model defaults and use neutral example configuration.

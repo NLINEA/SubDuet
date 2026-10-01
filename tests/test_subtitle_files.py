@@ -4,6 +4,7 @@ from pathlib import Path
 import pytest
 import srt
 
+from paircue.services.readability import ReadabilityProfile
 from paircue.services.subtitle_files import (
     SubtitleLanguage,
     bilingual_subtitles,
@@ -140,10 +141,89 @@ def test_time_based_merge_handles_one_to_many_segmentation() -> None:
 
     assert merged.source_match_ratio == 1
     assert merged.target_match_ratio == 1
+    assert merged.fully_paired
+    assert merged.unmatched_source_cues == merged.unmatched_target_cues == ()
+    assert merged.review_notice == ""
     assert len(merged.subtitles) == 1
     assert merged.subtitles[0].content == "你好\n世界\nHello world"
     assert merged.subtitles[0].start == timedelta(0)
     assert merged.subtitles[0].end == timedelta(seconds=2)
+
+
+def test_readability_review_preserves_fully_paired_text_timing_and_order() -> None:
+    source = [srt.Subtitle(1, timedelta(seconds=1), timedelta(seconds=6),
+                           "Keep the silver box closed until the bell rings.")]
+    target = [srt.Subtitle(1, timedelta(seconds=1), timedelta(seconds=6), "先不要打開銀色盒子。")]
+    result = merge_bilingual_subtitles(source, target, order="source-first")
+
+    assert result.fully_paired and result.needs_review
+    assert result.unmatched_source_cues == result.unmatched_target_cues == ()
+    assert result.subtitles[0].content == source[0].content + "\n" + target[0].content
+    assert (result.subtitles[0].start, result.subtitles[0].end) == (
+        source[0].start, source[0].end,
+    )
+    assert [(i.metric, i.measured, i.limit) for i in result.readability_issues] == [
+        ("source_line_codepoints", 48, 42),
+    ]
+    assert "partial" not in result.review_notice
+    assert "output SRT cue 1: source line length 48 codepoints exceeds 42" in result.review_notice
+
+    relaxed = merge_bilingual_subtitles(
+        source, target, order="source-first",
+        readability_profile=ReadabilityProfile(source_line_codepoints_max=48),
+    )
+    assert not relaxed.needs_review and relaxed.review_notice == ""
+    assert relaxed.subtitles == result.subtitles
+
+
+def test_readability_review_reports_combined_component_limits_without_splitting() -> None:
+    source = [srt.Subtitle(1, timedelta(seconds=1), timedelta(seconds=17.5),
+                           "One\nTwo\nThree\nFour\nFive")]
+    target = [srt.Subtitle(1, timedelta(seconds=1), timedelta(seconds=17.5),
+                           "甲\n乙\n丙")]
+    result = merge_bilingual_subtitles(source, target)
+
+    assert result.fully_paired and result.needs_review
+    assert len(result.subtitles) == 1
+    assert result.subtitles[0].content == target[0].content + "\n" + source[0].content
+    assert (result.subtitles[0].start, result.subtitles[0].end) == (
+        source[0].start, source[0].end,
+    )
+    assert [(i.metric, i.measured, i.limit) for i in result.readability_issues] == [
+        ("source_lines", 5, 2), ("target_lines", 3, 2),
+        ("total_lines", 8, 4), ("duration_ms", 16500, 7000),
+    ]
+
+
+def test_partial_and_readability_reviews_remain_distinct() -> None:
+    source = [
+        srt.Subtitle(i + 1, timedelta(seconds=i * 4), timedelta(seconds=i * 4 + 2),
+                     "A deliberately long source sentence for review." if i == 3 else f"Source {i}")
+        for i in range(4)
+    ]
+    target = [srt.Subtitle(i + 1, c.start, c.end, f"Target {i}") for i, c in enumerate(source[:3])]
+    result = merge_bilingual_subtitles(source, target)
+
+    assert not result.fully_paired and result.needs_review
+    assert result.unmatched_source_cues == (4,)
+    assert result.readability_issues[0].output_cue == 4
+    assert "partial timing pairing" in result.review_notice
+    assert "Readability review needed (proposed profile)" in result.review_notice
+    assert result.subtitles[-1].content == source[-1].content
+
+
+def test_readability_limits_are_inclusive_and_language_roles_ignore_display_order() -> None:
+    source = [srt.Subtitle(1, timedelta(0), timedelta(seconds=7), "A" * 42)]
+    target = [srt.Subtitle(1, timedelta(0), timedelta(seconds=7), "字" * 22)]
+    profile = ReadabilityProfile(target_line_codepoints_max=22)
+    clean = merge_bilingual_subtitles(source, target, readability_profile=profile)
+    assert clean.fully_paired and not clean.needs_review
+    target[0].content += "。"
+    for order in ["target-first", "source-first"]:
+        result = merge_bilingual_subtitles(source, target, order=order, readability_profile=profile)
+        assert [(i.metric, i.measured, i.limit) for i in result.readability_issues] == [
+            ("target_line_codepoints", 23, 22),
+        ]
 
 
 def test_time_based_merge_rejects_unrelated_timelines() -> None:
@@ -152,3 +232,33 @@ def test_time_based_merge_rejects_unrelated_timelines() -> None:
 
     with pytest.raises(ValueError, match="timing match is too low"):
         merge_bilingual_subtitles(source, target)
+
+
+def test_partial_merge_identifies_output_cues_and_retains_both_original_texts() -> None:
+    source = [
+        srt.Subtitle(100 + i, timedelta(seconds=i * 4), timedelta(seconds=i * 4 + 2),
+                     f"English {i}")
+        for i in range(4)
+    ]
+    target = [
+        srt.Subtitle(200 + i, timedelta(seconds=i * 4), timedelta(seconds=i * 4 + 2),
+                     f"中文 {i}")
+        for i in range(4)
+    ]
+    target[-1].start += timedelta(seconds=60)
+    target[-1].end += timedelta(seconds=60)
+
+    result = merge_bilingual_subtitles(source, target)
+
+    assert not result.fully_paired
+    assert result.source_match_ratio == result.target_match_ratio == 0.75
+    assert result.unmatched_source_cues == (4,)
+    assert result.unmatched_target_cues == (5,)
+    assert result.subtitles[3].content == source[-1].content
+    assert result.subtitles[4].content == target[-1].content
+    assert (result.subtitles[3].start, result.subtitles[3].end) == (
+        source[-1].start, source[-1].end,
+    )
+    assert (result.subtitles[4].start, result.subtitles[4].end) == (
+        target[-1].start, target[-1].end,
+    )
