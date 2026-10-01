@@ -63,6 +63,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           fetch-depth: 0
-      - run: python scripts/check_dco.py "$BASE_REF" HEAD
+      - run: python scripts/check_dco.py "$BASE_REF" "$HEAD_REF"
         env:
           BASE_REF: origin/${{ github.base_ref }}
+          HEAD_REF: ${{ github.event.pull_request.head.sha }}
