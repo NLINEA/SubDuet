@@ -32,7 +32,7 @@ class PreparedWrite:
 
 @contextmanager
 def prepare_write_bytes(
-    path: Path, content: bytes, *, mode: int = 0o644,
+    path: Path, content: bytes, *, mode: int = 0o600,
 ) -> Iterator[PreparedWrite]:
     """Prepare a complete file whose identity can be recorded before any publication."""
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -59,7 +59,7 @@ def prepare_write_bytes(
 
 
 def atomic_write_bytes(
-    path: Path, content: bytes, *, mode: int = 0o644, overwrite: bool = True,
+    path: Path, content: bytes, *, mode: int = 0o600, overwrite: bool = True,
     before_publish: Callable[[], None] | None = None,
     after_publish: Callable[[], None] | None = None,
     prepared: PreparedWrite | None = None,
